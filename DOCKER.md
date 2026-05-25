@@ -24,25 +24,25 @@ Do not use these credentials outside local testing.
 ## Build and start the database
 
 ```bash
-docker compose up -d db
+docker compose --env-file .env.docker up -d db
 ```
 
 ## Run migrations
 
 ```bash
-docker compose --profile tools run --rm migrate
+docker compose --env-file .env.docker --profile tools run --rm migrate
 ```
 
 ## Seed development data
 
 ```bash
-docker compose --profile tools run --rm seed
+docker compose --env-file .env.docker --profile tools run --rm seed
 ```
 
 ## Start the app
 
 ```bash
-docker compose up --build app
+docker compose --env-file .env.docker up --build app
 ```
 
 Open:
@@ -56,19 +56,19 @@ http://localhost:3000
 After the first setup, the usual flow is:
 
 ```bash
-docker compose up --build app
+docker compose --env-file .env.docker up --build app
 ```
 
 If migrations changed:
 
 ```bash
-docker compose --profile tools run --rm migrate
+docker compose --env-file .env.docker --profile tools run --rm migrate
 ```
 
 If seed data needs to be reset or ensured:
 
 ```bash
-docker compose --profile tools run --rm seed
+docker compose --env-file .env.docker --profile tools run --rm seed
 ```
 
 ## Database access
@@ -98,9 +98,9 @@ postgresql://finance_app:finance_dev_password@db:5432/finance_projection
 Warning: this deletes local Docker test data.
 
 ```bash
-docker compose down -v
-docker compose up -d db
-docker compose --profile tools run --rm migrate
-docker compose --profile tools run --rm seed
-docker compose up --build app
+docker compose --env-file .env.docker down -v
+docker compose --env-file .env.docker up -d db
+docker compose --env-file .env.docker --profile tools run --rm migrate
+docker compose --env-file .env.docker --profile tools run --rm seed
+docker compose --env-file .env.docker up --build app
 ```
