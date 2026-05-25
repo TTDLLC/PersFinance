@@ -1,0 +1,22 @@
+<section class="page-header row">
+  <div><h1>Accounts</h1><p>Starting and current balances used by projections.</p></div>
+  <a class="button" href="/accounts/new">New Account</a>
+</section>
+<table>
+  <thead><tr><th>Name</th><th>Type</th><th>Starting</th><th>Current</th><th>Projection</th><th>Status</th><th></th></tr></thead>
+  <tbody>
+    <% if (!accounts.length) { %>
+      <tr><td class="empty-state" colspan="7">No accounts yet. Add a projection account to start building cash-flow projections.</td></tr>
+    <% } %>
+    <% accounts.forEach((account) => { %>
+      <tr class="<%= account.active ? "" : "muted" %>">
+        <td><%= account.name %></td><td><%= label(account.type) %></td>
+        <td class="<%= signedClass(account.startingBalance) %>"><%= money(account.startingBalance) %></td>
+        <td class="<%= signedClass(account.currentBalance) %>"><%= money(account.currentBalance) %></td>
+        <td><span class="status"><%= account.includeInProjection ? "Included" : "Excluded" %></span></td>
+        <td><span class="status"><%= account.active ? "Active" : "Archived" %></span></td>
+        <td class="actions"><a href="/accounts/<%= account.id %>/edit">Edit</a></td>
+      </tr>
+    <% }) %>
+  </tbody>
+</table>

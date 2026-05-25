@@ -1,0 +1,19 @@
+<section class="page-header"><h1><%= recurring.id ? "Edit Recurring Transaction" : "New Recurring Transaction" %></h1></section>
+<form method="post" action="<%= recurring.id ? `/recurring/${recurring.id}` : "/recurring" %>" class="form grid-form">
+  <label>Name<input name="name" value="<%= recurring.name || "" %>" required></label>
+  <label>Kind<select name="kind"><% kinds.forEach((kind) => { %><option value="<%= kind %>" <%= recurring.kind === kind ? "selected" : "" %>><%= label(kind) %></option><% }) %></select></label>
+  <label>Amount<input type="number" step="0.01" name="amount" value="<%= recurring.amount || "" %>" required></label>
+  <label>Amount Type<select name="amountType"><% amountTypes.forEach((type) => { %><option value="<%= type %>" <%= recurring.amountType === type ? "selected" : "" %>><%= label(type) %></option><% }) %></select></label>
+  <label>Schedule<select name="scheduleType"><% scheduleTypes.forEach((type) => { %><option value="<%= type %>" <%= recurring.scheduleType === type ? "selected" : "" %>><%= label(type) %></option><% }) %></select></label>
+  <label>Day of Month<input type="number" min="1" max="31" name="dayOfMonth" value="<%= recurring.dayOfMonth || "" %>"></label>
+  <label>Second Day<input type="number" min="1" max="31" name="secondDayOfMonth" value="<%= recurring.secondDayOfMonth || "" %>"></label>
+  <label>Start Date<input type="date" name="startDate" value="<%= recurring.startDate || "" %>" required></label>
+  <label>End Date<input type="date" name="endDate" value="<%= recurring.endDate || "" %>"></label>
+  <label>Account<select name="accountId"><option value="">None</option><% accounts.forEach((account) => { %><option value="<%= account.id %>" <%= recurring.accountId === account.id ? "selected" : "" %>><%= account.name %></option><% }) %></select></label>
+  <label>Category<select name="categoryId"><option value="">None</option><% categories.forEach((category) => { %><option value="<%= category.id %>" <%= recurring.categoryId === category.id ? "selected" : "" %>><%= category.name %></option><% }) %></select></label>
+  <label>Payment Method<select name="paymentMethod"><% paymentMethods.forEach((method) => { %><option value="<%= method %>" <%= recurring.paymentMethod === method ? "selected" : "" %>><%= label(method) %></option><% }) %></select></label>
+  <label>Status<select name="status"><% statuses.forEach((status) => { %><option value="<%= status %>" <%= recurring.status === status ? "selected" : "" %>><%= label(status) %></option><% }) %></select></label>
+  <label class="full">Notes<textarea name="notes"><%= recurring.notes || "" %></textarea></label>
+  <div class="form-actions full"><button type="submit">Save</button><a href="/recurring">Cancel</a></div>
+</form>
+<% if (recurring.id && recurring.active) { %><form method="post" action="/recurring/<%= recurring.id %>/archive"><button class="danger" type="submit">Archive Recurring Transaction</button></form><% } %>

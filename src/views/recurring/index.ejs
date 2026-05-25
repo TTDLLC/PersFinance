@@ -1,0 +1,17 @@
+<section class="page-header row">
+  <div><h1>Recurring Transactions</h1><p>Bills, income, transfers, and debt payments that usually happen.</p></div>
+  <a class="button" href="/recurring/new">New Recurring</a>
+</section>
+<table>
+  <thead><tr><th>Name</th><th>Kind</th><th>Amount</th><th>Schedule</th><th>Account</th><th>Category</th><th>Status</th><th></th></tr></thead>
+  <tbody>
+    <% if (!recurring.length) { %>
+      <tr><td class="empty-state" colspan="8">No recurring transactions yet. Add income, bills, or debt payments to generate projections.</td></tr>
+    <% } %>
+    <% recurring.forEach((item) => { %>
+      <tr class="<%= item.active ? "" : "muted" %>">
+        <td><%= item.name %></td><td><%= label(item.kind) %></td><td class="<%= signedClass(item.amount) %>"><%= money(item.amount) %></td><td><%= label(item.scheduleType) %></td><td><%= item.accountName || "" %></td><td><%= item.categoryName || "" %></td><td><span class="status"><%= label(item.status) %></span></td><td class="actions"><a href="/recurring/<%= item.id %>/edit">Edit</a></td>
+      </tr>
+    <% }) %>
+  </tbody>
+</table>

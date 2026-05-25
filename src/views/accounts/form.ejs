@@ -1,0 +1,12 @@
+<section class="page-header"><h1><%= account.id ? "Edit Account" : "New Account" %></h1></section>
+<form method="post" action="<%= account.id ? `/accounts/${account.id}` : "/accounts" %>" class="form grid-form">
+  <label>Name<input name="name" value="<%= account.name || "" %>" required></label>
+  <label>Type<select name="type"><% accountTypes.forEach((type) => { %><option value="<%= type %>" <%= account.type === type ? "selected" : "" %>><%= label(type) %></option><% }) %></select></label>
+  <label>Starting Balance<input type="number" step="0.01" name="startingBalance" value="<%= account.startingBalance || "0.00" %>"></label>
+  <label>Current Balance<input type="number" step="0.01" name="currentBalance" value="<%= account.currentBalance || account.startingBalance || "0.00" %>"></label>
+  <label>Display Order<input type="number" name="displayOrder" value="<%= account.displayOrder || 0 %>"></label>
+  <label class="checkbox"><input type="checkbox" name="includeInProjection" <%= account.includeInProjection !== false ? "checked" : "" %>> Include in projection</label>
+  <label class="full">Notes<textarea name="notes"><%= account.notes || "" %></textarea></label>
+  <div class="form-actions full"><button type="submit">Save</button><a href="/accounts">Cancel</a></div>
+</form>
+<% if (account.id && account.active) { %><form method="post" action="/accounts/<%= account.id %>/archive"><button class="danger" type="submit">Archive Account</button></form><% } %>

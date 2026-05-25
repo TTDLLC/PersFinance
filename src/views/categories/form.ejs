@@ -1,0 +1,8 @@
+<section class="page-header"><h1><%= category.id ? "Edit Category" : "New Category" %></h1></section>
+<form method="post" action="<%= category.id ? `/categories/${category.id}` : "/categories" %>" class="form grid-form">
+  <label>Name<input name="name" value="<%= category.name || "" %>" required></label>
+  <label>Type<select name="type"><% categoryTypes.forEach((type) => { %><option value="<%= type %>" <%= category.type === type ? "selected" : "" %>><%= label(type) %></option><% }) %></select></label>
+  <label>Display Order<input type="number" name="displayOrder" value="<%= category.displayOrder || 0 %>"></label>
+  <div class="form-actions full"><button type="submit">Save</button><a href="/categories">Cancel</a></div>
+</form>
+<% if (category.id && category.active) { %><form method="post" action="/categories/<%= category.id %>/archive"><button class="danger" type="submit">Archive Category</button></form><% } %>

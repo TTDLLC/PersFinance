@@ -1,0 +1,18 @@
+<header class="topbar">
+  <a class="brand" href="/dashboard">Finance Projection</a>
+  <% if (currentUser) { %>
+    <nav class="nav">
+      <a href="/dashboard">Dashboard</a>
+      <a href="/accounts">Accounts</a>
+      <a href="/categories">Categories</a>
+      <a href="/recurring">Recurring</a>
+      <a href="/future-transactions">Future Transactions</a>
+      <a href="/projections/monthly">Projections</a>
+      <a href="/scenarios">Scenarios</a>
+      <a href="/settings">Settings</a>
+    </nav>
+    <form method="post" action="/logout">
+      <button class="link-button" type="submit">Logout</button>
+    </form>
+  <% } %>
+</header>

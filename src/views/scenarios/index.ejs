@@ -1,0 +1,15 @@
+<section class="page-header row">
+  <div><h1>Scenarios</h1><p>Projection assumptions such as the base plan and future what-ifs.</p></div>
+  <a class="button" href="/scenarios/new">New Scenario</a>
+</section>
+<table>
+  <thead><tr><th>Name</th><th>Description</th><th>Default</th><th>Status</th><th></th></tr></thead>
+  <tbody>
+    <% if (!scenarios.length) { %>
+      <tr><td class="empty-state" colspan="5">No scenarios yet. Seed defaults or create a Base Plan scenario.</td></tr>
+    <% } %>
+    <% scenarios.forEach((scenario) => { %>
+      <tr class="<%= scenario.active ? "" : "muted" %>"><td><%= scenario.name %></td><td><%= scenario.description || "" %></td><td><%= scenario.isDefault ? "Yes" : "No" %></td><td><span class="status"><%= scenario.active ? "Active" : "Inactive" %></span></td><td class="actions"><a href="/scenarios/<%= scenario.id %>/edit">Edit</a></td></tr>
+    <% }) %>
+  </tbody>
+</table>

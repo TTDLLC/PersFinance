@@ -1,0 +1,17 @@
+<section class="page-header">
+  <h1>Settings</h1>
+  <p>Projection defaults and app preferences.</p>
+</section>
+
+<section class="panel">
+  <h2>Projection Defaults</h2>
+  <table>
+    <tbody>
+      <tr><th>Default Start Date</th><td><%= settings?.defaultStartDate || "Today" %></td></tr>
+      <tr><th>Months Ahead</th><td><%= settings?.defaultMonthsAhead || 18 %></td></tr>
+      <tr><th>Include Estimates</th><td><%= settings?.includeEstimates === false ? "No" : "Yes" %></td></tr>
+      <tr><th>Include Pending</th><td><%= settings?.includePending === false ? "No" : "Yes" %></td></tr>
+    </tbody>
+  </table>
+  <p class="muted">Editable settings can be added after the projection behavior is finalized.</p>
+</section>

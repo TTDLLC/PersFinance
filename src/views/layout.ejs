@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title><%= title %> | Finance Projection</title>
+    <link rel="stylesheet" href="/css/app.css">
+  </head>
+  <body>
+    <% const money = (value) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(Number(value || 0)); %>
+    <% const signedClass = (value) => Number(value || 0) < 0 ? "amount negative" : "amount positive"; %>
+    <% const label = (value) => String(value || "").split("_").map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(" "); %>
+    <%- include("partials/nav") %>
+    <main class="app-shell">
+      <%- include("partials/flash") %>
+      <%- include(view, { money, signedClass, label }) %>
+    </main>
+    <script src="/js/app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,43 @@
+<section class="page-header">
+  <h1>Dashboard</h1>
+  <p>Cash-flow projection overview.</p>
+</section>
+
+<section class="metric-grid">
+  <article class="metric-card"><span>Starting Cash</span><strong><%= money(metrics.startingCash) %></strong></article>
+  <article class="metric-card"><span>30-Day Projected</span><strong><%= money(metrics.projected30DayBalance) %></strong></article>
+  <article class="metric-card"><span>90-Day Projected</span><strong><%= money(metrics.projected90DayBalance) %></strong></article>
+  <article class="metric-card"><span>Lowest Balance</span><strong><%= money(metrics.lowestBalance) %></strong></article>
+</section>
+
+<section class="placeholder-grid">
+  <div class="panel"><h2>Projected Balance Chart</h2><p>Chart.js will render balance trends here later.</p></div>
+  <div class="panel">
+    <h2>Upcoming Transactions</h2>
+    <table class="compact-table">
+      <thead><tr><th>Date</th><th>Description</th><th>Account</th><th>Amount</th></tr></thead>
+      <tbody>
+        <% if (!upcomingRows.length) { %>
+          <tr><td class="empty-state" colspan="4">No projected transactions yet.</td></tr>
+        <% } %>
+        <% upcomingRows.forEach((row) => { %>
+          <tr><td><%= row.date %></td><td><%= row.description %></td><td><%= row.accountName %></td><td class="<%= signedClass(row.amount) %>"><%= money(row.amount) %></td></tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+  <div class="panel">
+    <h2>Monthly Summary</h2>
+    <table class="compact-table">
+      <thead><tr><th>Month</th><th>Net</th><th>Ending</th><th>Lowest</th></tr></thead>
+      <tbody>
+        <% if (!monthlySummary.length) { %>
+          <tr><td class="empty-state" colspan="4">No monthly summary yet.</td></tr>
+        <% } %>
+        <% monthlySummary.forEach((row) => { %>
+          <tr><td><%= row.month %></td><td class="<%= signedClass(row.netChange) %>"><%= money(row.netChange) %></td><td><%= money(row.endingBalance) %></td><td><%= money(row.lowestBalance) %></td></tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</section>

@@ -1,0 +1,15 @@
+<section class="page-header row">
+  <div><h1>Categories</h1><p>Income, expense, transfer, and debt grouping.</p></div>
+  <a class="button" href="/categories/new">New Category</a>
+</section>
+<table>
+  <thead><tr><th>Name</th><th>Type</th><th>Order</th><th>Status</th><th></th></tr></thead>
+  <tbody>
+    <% if (!categories.length) { %>
+      <tr><td class="empty-state" colspan="5">No categories yet. Seed defaults or add a category.</td></tr>
+    <% } %>
+    <% categories.forEach((category) => { %>
+      <tr class="<%= category.active ? "" : "muted" %>"><td><%= category.name %></td><td><%= label(category.type) %></td><td><%= category.displayOrder %></td><td><span class="status"><%= category.active ? "Active" : "Archived" %></span></td><td class="actions"><a href="/categories/<%= category.id %>/edit">Edit</a></td></tr>
+    <% }) %>
+  </tbody>
+</table>
