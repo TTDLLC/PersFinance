@@ -3,11 +3,60 @@ services:
     build: .
     container_name: persfinance-app
     env_file:
-      - .env.docker
+      - path: .env.docker
+        required: false
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: ${PORT:-3000}
+      DATABASE_URL: ${DATABASE_URL:-postgresql://finance_app:finance_dev_password@db:5432/finance_projection}
+      SESSION_SECRET: ${SESSION_SECRET:-replace-this-local-dev-secret}
+      INITIAL_ADMIN_EMAIL: ${INITIAL_ADMIN_EMAIL:-admin@example.com}
+      INITIAL_ADMIN_PASSWORD: ${INITIAL_ADMIN_PASSWORD:-change-this-local-password}
     ports:
       - "3000:3000"
     depends_on:
-      - db
+      db:
+        condition: service_healthy
+
+  migrate:
+    build: .
+    container_name: persfinance-migrate
+    env_file:
+      - path: .env.docker
+        required: false
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: ${PORT:-3000}
+      DATABASE_URL: ${DATABASE_URL:-postgresql://finance_app:finance_dev_password@db:5432/finance_projection}
+      SESSION_SECRET: ${SESSION_SECRET:-replace-this-local-dev-secret}
+      INITIAL_ADMIN_EMAIL: ${INITIAL_ADMIN_EMAIL:-admin@example.com}
+      INITIAL_ADMIN_PASSWORD: ${INITIAL_ADMIN_PASSWORD:-change-this-local-password}
+    depends_on:
+      db:
+        condition: service_healthy
+    command: npm run db:migrate
+    profiles:
+      - tools
+
+  seed:
+    build: .
+    container_name: persfinance-seed
+    env_file:
+      - path: .env.docker
+        required: false
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: ${PORT:-3000}
+      DATABASE_URL: ${DATABASE_URL:-postgresql://finance_app:finance_dev_password@db:5432/finance_projection}
+      SESSION_SECRET: ${SESSION_SECRET:-replace-this-local-dev-secret}
+      INITIAL_ADMIN_EMAIL: ${INITIAL_ADMIN_EMAIL:-admin@example.com}
+      INITIAL_ADMIN_PASSWORD: ${INITIAL_ADMIN_PASSWORD:-change-this-local-password}
+    depends_on:
+      db:
+        condition: service_healthy
+    command: npm run seed:dev
+    profiles:
+      - tools
 
   db:
     image: postgres:16-alpine
@@ -18,9 +67,15 @@ services:
       POSTGRES_USER: finance_app
       POSTGRES_PASSWORD: finance_dev_password
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - persfinance_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U finance_app -d finance_projection"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
 
 volumes:
   persfinance_postgres_data:
