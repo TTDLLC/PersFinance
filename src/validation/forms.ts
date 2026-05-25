@@ -96,7 +96,6 @@ export const futureTransactionSchema = z.object({
 export const scenarioSchema = z.object({
   name: requiredText("Name"),
   description: optionalText,
-  isDefault: z.preprocess((value) => value === "on", z.boolean()),
   active: z.preprocess((value) => value === "on", z.boolean()).optional()
 });
 

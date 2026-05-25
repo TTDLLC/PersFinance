@@ -270,6 +270,23 @@ textarea {
   width: auto;
 }
 
+.checkbox-group {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  min-width: 240px;
+  padding: 10px 12px;
+}
+
+.checkbox-group legend {
+  color: #34424a;
+  font-size: 13px;
+  font-weight: 650;
+  padding: 0 4px;
+}
+
 .full {
   grid-column: 1 / -1;
 }

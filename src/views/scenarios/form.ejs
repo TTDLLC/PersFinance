@@ -2,7 +2,6 @@
 <form method="post" action="<%= scenario.id ? `/scenarios/${scenario.id}` : "/scenarios" %>" class="form grid-form">
   <label>Name<input name="name" value="<%= scenario.name || "" %>" required></label>
   <label class="full">Description<textarea name="description"><%= scenario.description || "" %></textarea></label>
-  <label class="checkbox"><input type="checkbox" name="isDefault" <%= scenario.isDefault ? "checked" : "" %>> Default scenario</label>
   <% if (scenario.id) { %><label class="checkbox"><input type="checkbox" name="active" <%= scenario.active !== false ? "checked" : "" %>> Active</label><% } %>
   <div class="form-actions full"><button type="submit">Save</button><a href="/scenarios">Cancel</a></div>
 </form>

@@ -28,8 +28,19 @@ const findCategoryId = async (name: string) => {
 };
 
 const ensureDevSeedData = async () => {
-  const [baseScenario] = await db.select().from(scenarios).where(eq(scenarios.name, "Base Plan")).limit(1);
-  if (!baseScenario) throw new Error("Base Plan scenario must exist before dev seed data.");
+  const [existingScenario] = await db.select().from(scenarios).where(eq(scenarios.name, "Vacation Heavy Plan")).limit(1);
+  const vacationScenario =
+    existingScenario ??
+    (
+      await db
+        .insert(scenarios)
+        .values({
+          name: "Vacation Heavy Plan",
+          description: "Optional overlay with additional vacation spending.",
+          isDefault: false
+        })
+        .returning()
+    )[0];
 
   const [checking] = await db.select().from(accounts).where(eq(accounts.name, "Main Checking")).limit(1);
   const checkingId =
@@ -139,7 +150,7 @@ const ensureDevSeedData = async () => {
       categoryId: travelCategoryId,
       transactionType: "vacation_payment",
       status: "planned",
-      scenarioId: baseScenario.id,
+      scenarioId: vacationScenario.id,
       includeInProjection: true
     });
   }
@@ -173,16 +184,6 @@ const main = async () => {
     }
   }
   console.log("Default categories ensured.");
-
-  const [baseScenario] = await db.select().from(scenarios).where(eq(scenarios.name, "Base Plan")).limit(1);
-  if (!baseScenario) {
-    await db.insert(scenarios).values({
-      name: "Base Plan",
-      description: "Default cash-flow projection scenario.",
-      isDefault: true
-    });
-  }
-  console.log("Base Plan scenario ensured.");
 
   const existingSettings = await db.select().from(projectionSettings).limit(1);
   if (!existingSettings.length) {

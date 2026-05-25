@@ -4,14 +4,18 @@
 <form class="filter-bar" method="get" action="/projections/monthly">
   <label>Start Date<input type="date" name="startDate" value="<%= options.startDate || "" %>"></label>
   <label>Months Ahead<input type="number" name="monthsAhead" min="1" max="60" value="<%= options.monthsAhead || 18 %>"></label>
-  <label>Scenario
-    <select name="scenarioId">
-      <option value="">All / Unassigned</option>
-      <% scenarios.forEach((scenario) => { %>
-        <option value="<%= scenario.id %>" <%= options.scenarioId === scenario.id ? "selected" : "" %>><%= scenario.name %></option>
-      <% }) %>
-    </select>
-  </label>
+  <fieldset class="checkbox-group">
+    <legend>Scenarios to include</legend>
+    <% if (!scenarios.length) { %>
+      <span class="muted">No active scenarios.</span>
+    <% } %>
+    <% scenarios.forEach((scenario) => { %>
+      <label class="checkbox">
+        <input type="checkbox" name="scenarioIds" value="<%= scenario.id %>" <%= options.scenarioIds?.includes(scenario.id) ? "checked" : "" %>>
+        <%= scenario.name %>
+      </label>
+    <% }) %>
+  </fieldset>
   <label>Account
     <select name="accountId">
       <option value="">All Projection Accounts</option>

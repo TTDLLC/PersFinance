@@ -1,4 +1,4 @@
-import { and, asc, eq, gte, isNull, lte, ne, or, type AnyColumn, type SQL } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, isNull, lte, ne, or, type AnyColumn, type SQL } from "drizzle-orm";
 import { db } from "../db/index.js";
 import {
   accounts,
@@ -45,7 +45,7 @@ export type ProjectionOptions = {
   startDate?: string;
   endDate?: string;
   monthsAhead?: number;
-  scenarioId?: string;
+  scenarioIds?: string[];
   accountId?: string;
   includeEstimates?: boolean;
   includePending?: boolean;
@@ -219,9 +219,12 @@ export const buildProjectionRows = async (
     lte(futureTransactions.date, endDate)
   ];
 
-  if (options.scenarioId) {
-    futureFilters.push(or(isNull(futureTransactions.scenarioId), eq(futureTransactions.scenarioId, options.scenarioId))!);
-  }
+  const selectedScenarioIds = options.scenarioIds ?? [];
+  futureFilters.push(
+    selectedScenarioIds.length
+      ? or(isNull(futureTransactions.scenarioId), inArray(futureTransactions.scenarioId, selectedScenarioIds))!
+      : isNull(futureTransactions.scenarioId)
+  );
   if (options.accountId) futureFilters.push(eq(futureTransactions.accountId, options.accountId));
   if (options.includePending === false) futureFilters.push(ne(futureTransactions.status, "pending"));
   if (options.includeEstimates === false) futureFilters.push(ne(futureTransactions.status, "estimate"));

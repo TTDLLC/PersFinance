@@ -25,7 +25,7 @@ export const createScenario = async (req: Request, res: Response) => {
   await db.insert(scenarios).values({
     name: data.name,
     description: data.description,
-    isDefault: data.isDefault
+    isDefault: false
   });
   req.flash("success", "Scenario created.");
   res.redirect("/scenarios");
@@ -59,7 +59,7 @@ export const updateScenario = async (req: Request, res: Response) => {
     .set({
       name: data.name,
       description: data.description,
-      isDefault: data.isDefault,
+      isDefault: false,
       active: data.active ?? false,
       updatedAt: new Date()
     })

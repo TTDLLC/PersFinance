@@ -84,10 +84,9 @@ The seed script creates:
 
 - Initial admin user from `INITIAL_ADMIN_EMAIL` and `INITIAL_ADMIN_PASSWORD`
 - Default categories
-- `Base Plan` scenario
 - Default projection settings
 
-To also create a small developer dataset with 2 accounts, recurring income, recurring bills, and a future vacation payment:
+To also create a small developer dataset with 2 accounts, recurring income, recurring bills, an optional `Vacation Heavy Plan` scenario overlay, and a future vacation payment assigned to that scenario:
 
 ```bash
 npm run seed:dev
@@ -145,7 +144,10 @@ The projection service combines active projection account current balances, week
 
 Projection option behavior:
 
-- `scenarioId` includes unassigned future transactions plus future transactions assigned to the selected scenario.
+- Scenarios are optional overlays. The app does not use a default scenario.
+- With no scenario checkboxes selected, projections include only base items: active recurring transactions and future transactions where `scenario_id` is null.
+- With one or more scenario checkboxes selected, projections include base items plus future transactions where `scenario_id` is in the selected scenario IDs.
+- Future transactions assigned to unselected scenarios are excluded.
 - `includeEstimates=false` excludes recurring estimates and future transactions with `estimate` status.
 - `includePending=false` excludes pending recurring and future transactions.
 - Cancelled future transactions are always excluded.
