@@ -291,6 +291,26 @@ textarea {
   grid-column: 1 / -1;
 }
 
+.details-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  margin-top: 12px;
+}
+
+details {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 10px 12px;
+}
+
+summary {
+  color: #34424a;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 650;
+}
+
 .form-actions,
 .filter-bar {
   align-items: end;

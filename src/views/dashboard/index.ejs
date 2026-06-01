@@ -11,6 +11,20 @@
 </section>
 
 <section class="placeholder-grid">
+  <div class="panel">
+    <h2>Register Balances</h2>
+    <table class="compact-table">
+      <thead><tr><th>Account</th><th>Snapshot</th><th>Activity</th><th>Working</th></tr></thead>
+      <tbody>
+        <% if (!workingBalances.length) { %>
+          <tr><td class="empty-state" colspan="4">No register balances yet.</td></tr>
+        <% } %>
+        <% workingBalances.forEach((balance) => { %>
+          <tr><td><%= balance.accountName %></td><td><%= balance.latestSnapshotDate || "None" %></td><td class="<%= signedClass(balance.postSnapshotActivityTotal) %>"><%= money(balance.postSnapshotActivityTotal) %></td><td><%= money(balance.workingBalance) %></td></tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
   <div class="panel"><h2>Projected Balance Chart</h2><p>Chart.js will render balance trends here later.</p></div>
   <div class="panel">
     <h2>Upcoming Transactions</h2>

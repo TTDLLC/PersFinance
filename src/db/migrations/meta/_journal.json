@@ -8,6 +8,13 @@
       "when": 1779678607417,
       "tag": "0001_clever_mockingbird",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1780185600000,
+      "tag": "0002_transactions_register_foundation",
+      "breakpoints": true
     }
   ]
 }

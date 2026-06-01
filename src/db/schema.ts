@@ -104,6 +104,16 @@ export const actualTransactionStatusEnum = pgEnum("actual_transaction_status", [
   "ignored"
 ]);
 
+export const transactionStatusEnum = pgEnum("transaction_status", [
+  "entered",
+  "pending",
+  "cleared",
+  "statement",
+  "recurring",
+  "archived",
+  "void"
+]);
+
 export const users = pgTable(
   "users",
   {
@@ -216,6 +226,29 @@ export const actualTransactions = pgTable("actual_transactions", {
   categoryId: uuid("category_id").references(() => categories.id, { onDelete: "set null" }),
   transactionType: text("transaction_type"),
   status: actualTransactionStatusEnum("status").notNull().default("cleared"),
+  source: text("source"),
+  sourceRowHash: text("source_row_hash"),
+  importBatchId: uuid("import_batch_id").references(() => importBatches.id, { onDelete: "set null" }),
+  notes: text("notes"),
+  ...timestamps
+});
+
+export const transactions = pgTable("transactions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  accountId: uuid("account_id").references(() => accounts.id, { onDelete: "set null" }),
+  categoryId: uuid("category_id").references(() => categories.id, { onDelete: "set null" }),
+  date: date("date").notNull(),
+  description: text("description").notNull(),
+  amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
+  transactionType: text("transaction_type"),
+  status: transactionStatusEnum("status").notNull().default("entered"),
+  amountType: amountTypeEnum("amount_type").notNull().default("fixed"),
+  paymentMethod: paymentMethodEnum("payment_method").notNull().default("manual"),
+  recurringGroupId: uuid("recurring_group_id"),
+  frequency: scheduleTypeEnum("frequency"),
+  recurringEndDate: date("recurring_end_date"),
+  dayOfMonth: integer("day_of_month"),
+  secondDayOfMonth: integer("second_day_of_month"),
   source: text("source"),
   sourceRowHash: text("source_row_hash"),
   importBatchId: uuid("import_batch_id").references(() => importBatches.id, { onDelete: "set null" }),

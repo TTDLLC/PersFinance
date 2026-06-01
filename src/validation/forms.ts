@@ -9,6 +9,7 @@ export const paymentMethods = ["auto_payment", "bill_pay", "online_payment", "sw
 export const recurringStatuses = ["planned", "pending", "cleared", "reconciled", "estimate", "archived"] as const;
 export const futureTransactionTypes = ["bill", "income", "transfer", "debt_payment", "vacation_payment", "manual_adjustment", "purchase", "refund", "other"] as const;
 export const futureTransactionStatuses = ["planned", "pending", "cleared", "estimate", "cancelled"] as const;
+export const transactionStatuses = ["entered", "pending", "cleared", "statement", "recurring", "archived", "void"] as const;
 
 const optionalText = z.string().trim().transform((value) => value || null);
 const requiredText = (field: string) => z.string().trim().min(1, `${field} is required.`);
@@ -92,6 +93,38 @@ export const futureTransactionSchema = z.object({
   includeInProjection: z.preprocess((value) => value === "on", z.boolean()),
   notes: optionalText
 });
+
+export const transactionSchema = z
+  .object({
+    date: requiredDate,
+    description: requiredText("Description"),
+    amount: numberFromForm("Amount").refine((value) => value !== 0, "Amount cannot be zero."),
+    accountId: optionalUuid,
+    categoryId: optionalUuid,
+    transactionType: optionalText,
+    status: z.enum(transactionStatuses),
+    amountType: z.enum(amountTypes),
+    paymentMethod: z.enum(paymentMethods),
+    recurringGroupId: optionalUuid,
+    frequency: z.preprocess(
+      (value) => (value === "" || value === undefined ? null : value),
+      z.enum(scheduleTypes).nullable()
+    ),
+    recurringEndDate: optionalDate,
+    dayOfMonth: optionalIntFromForm,
+    secondDayOfMonth: optionalIntFromForm,
+    source: optionalText,
+    sourceRowHash: optionalText,
+    notes: optionalText
+  })
+  .refine((data) => !data.dayOfMonth || (data.dayOfMonth >= 1 && data.dayOfMonth <= 31), {
+    message: "Day of month must be between 1 and 31.",
+    path: ["dayOfMonth"]
+  })
+  .refine((data) => !data.secondDayOfMonth || (data.secondDayOfMonth >= 1 && data.secondDayOfMonth <= 31), {
+    message: "Second day must be between 1 and 31.",
+    path: ["secondDayOfMonth"]
+  });
 
 export const scenarioSchema = z.object({
   name: requiredText("Name"),

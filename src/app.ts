@@ -18,6 +18,7 @@ import { projectionsRoutes } from "./routes/projections.routes.js";
 import { recurringRoutes } from "./routes/recurring.routes.js";
 import { scenariosRoutes } from "./routes/scenarios.routes.js";
 import { settingsRoutes } from "./routes/settings.routes.js";
+import { transactionsRoutes } from "./routes/transactions.routes.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -67,6 +68,7 @@ app.use(authRoutes);
 app.use("/", dashboardRoutes);
 app.use("/accounts", accountsRoutes);
 app.use("/categories", categoriesRoutes);
+app.use("/transactions", transactionsRoutes);
 app.use("/recurring", recurringRoutes);
 app.use("/future-transactions", futureTransactionsRoutes);
 app.use("/scenarios", scenariosRoutes);

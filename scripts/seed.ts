@@ -2,7 +2,16 @@ import bcrypt from "bcryptjs";
 import { eq } from "drizzle-orm";
 import { env } from "../src/config/env.js";
 import { db, pool } from "../src/db/index.js";
-import { accounts, categories, futureTransactions, projectionSettings, recurringTransactions, scenarios, users } from "../src/db/schema.js";
+import {
+  accountBalanceSnapshots,
+  accounts,
+  categories,
+  futureTransactions,
+  projectionSettings,
+  recurringTransactions,
+  scenarios,
+  users
+} from "../src/db/schema.js";
 
 const defaultCategories = [
   ["Housing", "expense"],
@@ -25,6 +34,31 @@ const findCategoryId = async (name: string) => {
   const [category] = await db.select().from(categories).where(eq(categories.name, name)).limit(1);
   if (!category) throw new Error(`Missing seeded category: ${name}`);
   return category.id;
+};
+
+const ensureInitialStatementSnapshots = async () => {
+  const seededAccounts = await db.select().from(accounts);
+  const snapshotDate = new Date().toISOString().slice(0, 10);
+
+  for (const account of seededAccounts) {
+    const [existingSnapshot] = await db
+      .select()
+      .from(accountBalanceSnapshots)
+      .where(eq(accountBalanceSnapshots.accountId, account.id))
+      .limit(1);
+
+    if (!existingSnapshot) {
+      await db.insert(accountBalanceSnapshots).values({
+        accountId: account.id,
+        snapshotDate,
+        balance: account.currentBalance,
+        source: "seed",
+        notes: "Initial statement snapshot from seeded current balance."
+      });
+    }
+  }
+
+  console.log("Initial statement snapshots ensured.");
 };
 
 const ensureDevSeedData = async () => {
@@ -198,6 +232,8 @@ const main = async () => {
   if (devSeedEnabled) {
     await ensureDevSeedData();
   }
+
+  await ensureInitialStatementSnapshots();
 };
 
 main()
