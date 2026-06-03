@@ -110,7 +110,6 @@ export const transactionStatusEnum = pgEnum("transaction_status", [
   "cleared",
   "statement",
   "recurring",
-  "archived",
   "void"
 ]);
 

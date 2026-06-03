@@ -2,11 +2,11 @@ import { and, asc, desc, eq, gt, inArray } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { accountBalanceSnapshots, accounts, transactions } from "../db/schema.js";
 
-const balanceAffectingStatuses: Array<"entered" | "pending" | "cleared" | "archived"> = [
+const balanceAffectingStatuses: Array<"entered" | "pending" | "cleared" | "recurring"> = [
   "entered",
   "pending",
   "cleared",
-  "archived"
+  "recurring"
 ];
 const toNumber = (value: string | number | null | undefined) => Number(value ?? 0);
 

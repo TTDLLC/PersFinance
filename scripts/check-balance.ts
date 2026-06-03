@@ -56,20 +56,9 @@ const main = async () => {
     ]);
 
     const baseBalance = await getAccountWorkingBalance(account.id);
-    assertBalance(baseBalance?.workingBalance, 1050, "Working balance without archived transaction");
+    assertBalance(baseBalance?.workingBalance, 975, "Working balance includes recurring and excludes statement/void.");
 
-    await db.insert(transactions).values({
-      accountId: account.id,
-      date: transactionDate,
-      description: "Archived test",
-      amount: "25.00",
-      status: "archived"
-    });
-
-    const archivedBalance = await getAccountWorkingBalance(account.id);
-    assertBalance(archivedBalance?.workingBalance, 1075, "Working balance with archived transaction");
-
-    console.log("Manual balance check passed: 1000 - 100 - 50 + 200 = 1050; archived also affects balance.");
+    console.log("Manual balance check passed: 1000 - 100 - 50 + 200 - 75 = 975; statement and void are excluded.");
   } finally {
     await db.delete(transactions).where(eq(transactions.accountId, account.id));
     await db.delete(accountBalanceSnapshots).where(eq(accountBalanceSnapshots.accountId, account.id));

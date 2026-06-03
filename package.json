@@ -12,7 +12,8 @@
     "db:studio": "drizzle-kit studio",
     "seed": "tsx scripts/seed.ts",
     "seed:dev": "tsx scripts/seed.ts --dev",
-    "test:balance": "npm run build && node dist/scripts/check-balance.js"
+    "test:balance": "npm run build && node dist/scripts/check-balance.js",
+    "test:register": "npm run build && node dist/scripts/check-register.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

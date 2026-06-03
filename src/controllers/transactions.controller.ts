@@ -1,7 +1,8 @@
 import type { Request, Response } from "express";
-import { and, asc, desc, eq, ne, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, type SQL } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { accounts, categories, transactions } from "../db/schema.js";
+import { editableRegisterStatuses, voidableRegisterStatuses } from "../services/accountRegister.service.js";
 import { getAllAccountWorkingBalances } from "../services/balance.service.js";
 import {
   amountTypes,
@@ -23,11 +24,11 @@ const getFormData = async () => ({
 
 export const listTransactions = async (req: Request, res: Response) => {
   const accountId = typeof req.query.accountId === "string" && req.query.accountId ? req.query.accountId : undefined;
-  const includeArchived = req.query.includeArchived === "on";
+  const showVoid = req.query.showVoid === "on";
   const filters: SQL[] = [];
 
   if (accountId) filters.push(eq(transactions.accountId, accountId));
-  if (!includeArchived) filters.push(ne(transactions.status, "archived"));
+  filters.push(inArray(transactions.status, showVoid ? ["entered", "pending", "cleared", "recurring", "void"] : ["entered", "pending", "cleared", "recurring"]));
 
   const rows = await db
     .select({
@@ -58,7 +59,7 @@ export const listTransactions = async (req: Request, res: Response) => {
     transactions: rows,
     accounts: registerAccounts,
     balances,
-    filters: { accountId, includeArchived }
+    filters: { accountId, showVoid }
   });
 };
 
@@ -116,6 +117,12 @@ export const editTransaction = async (req: Request, res: Response) => {
     return;
   }
 
+  if (!editableRegisterStatuses.includes(transaction.status as (typeof editableRegisterStatuses)[number])) {
+    req.flash("error", "Statement and void transactions are locked and cannot be edited.");
+    res.redirect("/transactions");
+    return;
+  }
+
   res.render("layout", {
     title: "Edit Register Transaction",
     view: "transactions/form",
@@ -125,6 +132,19 @@ export const editTransaction = async (req: Request, res: Response) => {
 };
 
 export const updateTransaction = async (req: Request, res: Response) => {
+  const [existing] = await db.select().from(transactions).where(eq(transactions.id, req.params.id)).limit(1);
+  if (!existing) {
+    req.flash("error", "Register transaction not found.");
+    res.redirect("/transactions");
+    return;
+  }
+
+  if (!editableRegisterStatuses.includes(existing.status as (typeof editableRegisterStatuses)[number])) {
+    req.flash("error", "Statement and void transactions are locked and cannot be edited.");
+    res.redirect("/transactions");
+    return;
+  }
+
   const parsed = transactionSchema.safeParse(req.body);
   if (!parsed.success) {
     req.flash("error", firstValidationMessage(parsed.error));
@@ -166,6 +186,19 @@ export const updateTransaction = async (req: Request, res: Response) => {
 };
 
 export const voidTransaction = async (req: Request, res: Response) => {
+  const [transaction] = await db.select().from(transactions).where(eq(transactions.id, req.params.id)).limit(1);
+  if (!transaction) {
+    req.flash("error", "Register transaction not found.");
+    res.redirect("/transactions");
+    return;
+  }
+
+  if (!voidableRegisterStatuses.includes(transaction.status as (typeof voidableRegisterStatuses)[number])) {
+    req.flash("error", "Statement transactions cannot be voided.");
+    res.redirect("/transactions");
+    return;
+  }
+
   await db
     .update(transactions)
     .set({ status: "void", updatedAt: new Date() })

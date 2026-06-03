@@ -1,0 +1,66 @@
+<section class="page-header row">
+  <div>
+    <h1><%= register.account.name %> Register</h1>
+    <p>Snapshot <%= register.latestSnapshotDate || "none" %> at <%= money(register.latestSnapshotBalance) %>; future through <%= register.futureThroughDate %>.</p>
+  </div>
+  <a class="button" href="/accounts/<%= register.account.id %>/register/new">New Transaction</a>
+</section>
+
+<form class="filter-bar" method="get" action="/accounts/<%= register.account.id %>/register">
+  <input type="hidden" name="showFuture" value="false">
+  <label class="checkbox">
+    <input type="checkbox" name="showFuture" value="true" <%= register.showFuture ? "checked" : "" %>>
+    Show future
+  </label>
+  <label class="checkbox">
+    <input type="checkbox" name="showVoid" value="true" <%= register.showVoid ? "checked" : "" %>>
+    Show void
+  </label>
+  <button type="submit">Update</button>
+</form>
+
+<table>
+  <thead>
+    <tr>
+      <th>Date</th>
+      <th>Description / Payee</th>
+      <th>Category</th>
+      <th>Amount</th>
+      <th>Status</th>
+      <th>Balance After</th>
+      <th>Edit</th>
+      <th>Void</th>
+    </tr>
+  </thead>
+  <tbody>
+    <% if (!register.rows.length) { %>
+      <tr><td class="empty-state" colspan="8">No register transactions in this window.</td></tr>
+    <% } %>
+    <% register.rows.forEach((item) => { %>
+      <tr class="<%= item.isFuture ? "future-row" : "" %> <%= item.status === "void" ? "void-row" : "" %>">
+        <td><%= item.date %></td>
+        <td><%= item.description %></td>
+        <td><%= item.categoryName || "" %></td>
+        <td class="<%= signedClass(item.amount) %>"><%= accountingMoney(item.amount) %></td>
+        <td><span class="status"><%= label(item.status) %><%= item.amountType === "estimate" ? " Estimate" : "" %></span></td>
+        <td class="<%= signedClass(item.balanceAfter) %>"><%= accountingMoney(item.balanceAfter) %></td>
+        <td class="actions">
+          <% if (item.canEdit) { %>
+            <a href="/accounts/<%= register.account.id %>/register/<%= item.id %>/edit">Edit</a>
+          <% } else { %>
+            <span class="muted">Locked</span>
+          <% } %>
+        </td>
+        <td class="actions">
+          <% if (item.canVoid) { %>
+            <form method="post" action="/accounts/<%= register.account.id %>/register/<%= item.id %>/void">
+              <button class="link-button danger-link" type="submit">Void</button>
+            </form>
+          <% } else { %>
+            <span class="muted">-</span>
+          <% } %>
+        </td>
+      </tr>
+    <% }) %>
+  </tbody>
+</table>

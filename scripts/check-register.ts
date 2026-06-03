@@ -1,0 +1,190 @@
+import bcrypt from "bcryptjs";
+import { eq, inArray } from "drizzle-orm";
+import { app } from "../src/app.js";
+import { db, pool } from "../src/db/index.js";
+import { accountBalanceSnapshots, accounts, categories, transactions, users } from "../src/db/schema.js";
+import { getAccountRegister, isBalanceAffectingRegisterStatus } from "../src/services/accountRegister.service.js";
+
+const testAccountName = "Register Flow Test Account";
+const testCategoryName = "Register Flow Test Category";
+const testUserEmail = "register-flow-test@example.com";
+const testPassword = "register-flow-password";
+const today = "2026-06-03";
+
+const assert = (condition: unknown, message: string) => {
+  if (!condition) throw new Error(message);
+};
+
+const assertDescriptions = (actual: string[], expected: string[], label: string) => {
+  const missing = expected.filter((description) => !actual.includes(description));
+  assert(!missing.length, `${label}: missing ${missing.join(", ")}`);
+};
+
+const assertNotDescriptions = (actual: string[], unexpected: string[], label: string) => {
+  const found = unexpected.filter((description) => actual.includes(description));
+  assert(!found.length, `${label}: unexpectedly found ${found.join(", ")}`);
+};
+
+const cleanup = async () => {
+  const staleAccounts = await db.select({ id: accounts.id }).from(accounts).where(eq(accounts.name, testAccountName));
+  const staleAccountIds = staleAccounts.map((account) => account.id);
+  if (staleAccountIds.length) {
+    await db.delete(transactions).where(inArray(transactions.accountId, staleAccountIds));
+    await db.delete(accountBalanceSnapshots).where(inArray(accountBalanceSnapshots.accountId, staleAccountIds));
+    await db.delete(accounts).where(inArray(accounts.id, staleAccountIds));
+  }
+  await db.delete(categories).where(eq(categories.name, testCategoryName));
+  await db.delete(users).where(eq(users.email, testUserEmail));
+};
+
+const startServer = () =>
+  new Promise<{ close: () => Promise<void>; baseUrl: string }>((resolve) => {
+    const server = app.listen(0, () => {
+      const address = server.address();
+      if (!address || typeof address === "string") throw new Error("Could not start test server.");
+      resolve({
+        baseUrl: `http://127.0.0.1:${address.port}`,
+        close: () => new Promise((closeResolve) => server.close(() => closeResolve()))
+      });
+    });
+  });
+
+const main = async () => {
+  await cleanup();
+
+  const [account] = await db
+    .insert(accounts)
+    .values({
+      name: testAccountName,
+      type: "checking",
+      startingBalance: "0.00",
+      currentBalance: "0.00",
+      includeInProjection: false,
+      displayOrder: 999
+    })
+    .returning({ id: accounts.id });
+
+  const [category] = await db
+    .insert(categories)
+    .values({ name: testCategoryName, type: "expense", displayOrder: 999 })
+    .returning({ id: categories.id });
+
+  const passwordHash = await bcrypt.hash(testPassword, 4);
+  await db.insert(users).values({
+    email: testUserEmail,
+    passwordHash,
+    displayName: "Register Test"
+  });
+
+  try {
+    await db.insert(accountBalanceSnapshots).values([
+      { accountId: account.id, snapshotDate: "2026-05-15", balance: "500.00", source: "register-test-old" },
+      { accountId: account.id, snapshotDate: "2026-05-31", balance: "1000.00", source: "register-test-latest" }
+    ]);
+
+    await db.insert(transactions).values([
+      { accountId: account.id, categoryId: category.id, date: "2026-05-20", description: "Before latest snapshot", amount: "-999.00", status: "cleared" },
+      { accountId: account.id, categoryId: category.id, date: "2026-06-01", description: "Statement hidden", amount: "-25.00", status: "statement" },
+      { accountId: account.id, categoryId: category.id, date: "2026-06-01", description: "Void hidden", amount: "-40.00", status: "void" },
+      { accountId: account.id, categoryId: category.id, date: "2026-06-01", description: "Entered expense", amount: "-100.00", status: "entered" },
+      { accountId: account.id, categoryId: category.id, date: "2026-06-02", description: "Pending expense", amount: "-50.00", status: "pending" },
+      { accountId: account.id, categoryId: category.id, date: "2026-06-03", description: "Cleared deposit", amount: "200.00", status: "cleared" },
+      { accountId: account.id, categoryId: category.id, date: "2026-06-10", description: "Recurring future", amount: "-75.00", status: "recurring" },
+      { accountId: account.id, categoryId: category.id, date: "2026-07-15", description: "Future within window", amount: "-30.00", status: "entered" },
+      { accountId: account.id, categoryId: category.id, date: "2026-08-05", description: "Future beyond window", amount: "-60.00", status: "entered" }
+    ]);
+
+    const defaultRegister = await getAccountRegister(account.id, { today });
+    if (!defaultRegister) throw new Error("Expected account register to load for valid account.");
+    const defaultDescriptions = defaultRegister.rows.map((row) => row.description);
+    assertDescriptions(defaultDescriptions, ["Entered expense", "Pending expense", "Cleared deposit", "Recurring future", "Future within window"], "Default register rows");
+    assertNotDescriptions(defaultDescriptions, ["Before latest snapshot", "Statement hidden", "Void hidden", "Future beyond window"], "Default register rows");
+    assert(defaultRegister.latestSnapshotBalance === 1000, "Running balance should start from latest snapshot.");
+    assert(defaultRegister.rows.at(-1)?.balanceAfter === 945, "Running balance should include entered/pending/cleared/recurring and exclude statement/void.");
+
+    const noFutureRegister = await getAccountRegister(account.id, { today, showFuture: false });
+    assertNotDescriptions(noFutureRegister?.rows.map((row) => row.description) ?? [], ["Recurring future", "Future within window"], "showFuture=false register rows");
+
+    const showVoidRegister = await getAccountRegister(account.id, { today, showVoid: true });
+    if (!showVoidRegister) throw new Error("Expected showVoid register to load for valid account.");
+    const voidRow = showVoidRegister.rows.find((row) => row.description === "Void hidden");
+    if (!voidRow) throw new Error("Voided transactions should be visible when showVoid=true.");
+    let expectedShowVoidBalance = showVoidRegister.latestSnapshotBalance;
+    for (const row of showVoidRegister.rows) {
+      if (isBalanceAffectingRegisterStatus(row.status)) expectedShowVoidBalance += row.amount;
+      assert(row.balanceAfter === expectedShowVoidBalance, `${row.description} should not include excluded transaction amounts in running balance.`);
+    }
+    assert(showVoidRegister.rows.at(-1)?.balanceAfter === defaultRegister.rows.at(-1)?.balanceAfter, "Showing void rows should not change the ending running balance.");
+
+    const server = await startServer();
+    try {
+      const loginResponse = await fetch(`${server.baseUrl}/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({ email: testUserEmail, password: testPassword }),
+        redirect: "manual"
+      });
+      const cookie = loginResponse.headers.get("set-cookie")?.split(";")[0];
+      if (!cookie) throw new Error("Expected login to set a session cookie.");
+
+      const registerResponse = await fetch(`${server.baseUrl}/accounts/${account.id}/register`, {
+        headers: { Cookie: cookie }
+      });
+      const html = await registerResponse.text();
+      assert(registerResponse.status === 200, "Account register route should load for a valid account.");
+      assert(html.includes("Register Flow Test Account Register"), "Register route should render the account register.");
+      assert(html.includes("($50.00)"), "Negative amounts should display with parentheses.");
+      assert(html.includes("future-row"), "Future rows should render with the future-row CSS class.");
+
+      const [activeTransaction] = await db
+        .select({ id: transactions.id })
+        .from(transactions)
+        .where(eq(transactions.description, "Entered expense"))
+        .limit(1);
+      const voidResponse = await fetch(`${server.baseUrl}/accounts/${account.id}/register/${activeTransaction.id}/void`, {
+        method: "POST",
+        headers: { Cookie: cookie },
+        redirect: "manual"
+      });
+      assert(voidResponse.status === 302, "Active transactions can be voided.");
+      const afterVoid = await getAccountRegister(account.id, { today });
+      assertNotDescriptions(afterVoid?.rows.map((row) => row.description) ?? [], ["Entered expense"], "After void default rows");
+      const afterVoidVisible = await getAccountRegister(account.id, { today, showVoid: true });
+      assertDescriptions(afterVoidVisible?.rows.map((row) => row.description) ?? [], ["Entered expense"], "After void showVoid rows");
+
+      const [statementTransaction] = await db
+        .select({ id: transactions.id })
+        .from(transactions)
+        .where(eq(transactions.description, "Statement hidden"))
+        .limit(1);
+      const statementEditResponse = await fetch(
+        `${server.baseUrl}/accounts/${account.id}/register/${statementTransaction.id}/edit`,
+        { headers: { Cookie: cookie }, redirect: "manual" }
+      );
+      assert(statementEditResponse.status === 302, "Statement transactions cannot be edited.");
+
+      const [voidTransaction] = await db
+        .select({ id: transactions.id })
+        .from(transactions)
+        .where(eq(transactions.description, "Void hidden"))
+        .limit(1);
+      const voidEditResponse = await fetch(`${server.baseUrl}/accounts/${account.id}/register/${voidTransaction.id}/edit`, {
+        headers: { Cookie: cookie },
+        redirect: "manual"
+      });
+      assert(voidEditResponse.status === 302, "Void transactions cannot be edited.");
+    } finally {
+      await server.close();
+    }
+
+    console.log("Register flow check passed.");
+  } finally {
+    await cleanup();
+    await pool.end();
+  }
+};
+
+main().catch((error) => {
+  console.error(error);
+  process.exitCode = 1;
+});

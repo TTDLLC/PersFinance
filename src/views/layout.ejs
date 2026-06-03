@@ -8,12 +8,13 @@
   </head>
   <body>
     <% const money = (value) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(Number(value || 0)); %>
+    <% const accountingMoney = (value) => { const numeric = Number(value || 0); const formatted = money(Math.abs(numeric)); return numeric < 0 ? `(${formatted})` : formatted; }; %>
     <% const signedClass = (value) => Number(value || 0) < 0 ? "amount negative" : "amount positive"; %>
     <% const label = (value) => String(value || "").split("_").map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(" "); %>
     <%- include("partials/nav") %>
     <main class="app-shell">
       <%- include("partials/flash") %>
-      <%- include(view, { money, signedClass, label }) %>
+      <%- include(view, { money, accountingMoney, signedClass, label }) %>
     </main>
     <script src="/js/app.js"></script>
   </body>

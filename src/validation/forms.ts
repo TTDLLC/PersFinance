@@ -9,7 +9,7 @@ export const paymentMethods = ["auto_payment", "bill_pay", "online_payment", "sw
 export const recurringStatuses = ["planned", "pending", "cleared", "reconciled", "estimate", "archived"] as const;
 export const futureTransactionTypes = ["bill", "income", "transfer", "debt_payment", "vacation_payment", "manual_adjustment", "purchase", "refund", "other"] as const;
 export const futureTransactionStatuses = ["planned", "pending", "cleared", "estimate", "cancelled"] as const;
-export const transactionStatuses = ["entered", "pending", "cleared", "statement", "recurring", "archived", "void"] as const;
+export const transactionStatuses = ["entered", "pending", "cleared", "statement", "recurring", "void"] as const;
 
 const optionalText = z.string().trim().transform((value) => value || null);
 const requiredText = (field: string) => z.string().trim().min(1, `${field} is required.`);

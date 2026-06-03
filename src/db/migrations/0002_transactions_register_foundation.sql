@@ -1,4 +1,4 @@
-CREATE TYPE "public"."transaction_status" AS ENUM('entered', 'pending', 'cleared', 'statement', 'recurring', 'archived', 'void');--> statement-breakpoint
+CREATE TYPE "public"."transaction_status" AS ENUM('entered', 'pending', 'cleared', 'statement', 'recurring', 'void');--> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "transactions" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"account_id" uuid,
