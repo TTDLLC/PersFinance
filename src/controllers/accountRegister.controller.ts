@@ -9,6 +9,11 @@ import {
   voidableRegisterStatuses
 } from "../services/accountRegister.service.js";
 import {
+  processDueRecurringTransactions,
+  updateRecurringTransactionWithLifecycle,
+  voidRecurringTransactionWithLifecycle
+} from "../services/recurring.service.js";
+import {
   amountTypes,
   firstValidationMessage,
   paymentMethods,
@@ -47,6 +52,8 @@ const queryFlag = (value: unknown, defaultValue: boolean) => {
 };
 
 export const showAccountRegister = async (req: Request, res: Response) => {
+  await processDueRecurringTransactions(req.params.accountId);
+
   const register = await getAccountRegister(req.params.accountId, {
     showFuture: queryFlag(req.query.showFuture, true),
     showVoid: queryFlag(req.query.showVoid, false)
@@ -187,28 +194,31 @@ export const updateAccountRegisterTransaction = async (req: Request, res: Respon
   }
 
   const data = parsed.data;
-  await db
-    .update(transactions)
-    .set({
-      date: data.date,
-      description: data.description,
-      amount: data.amount.toFixed(2),
-      categoryId: data.categoryId,
-      transactionType: data.transactionType,
-      status: data.status,
-      amountType: data.amountType,
-      paymentMethod: data.paymentMethod,
-      recurringGroupId: data.recurringGroupId,
-      frequency: data.frequency,
-      recurringEndDate: data.recurringEndDate,
-      dayOfMonth: data.dayOfMonth,
-      secondDayOfMonth: data.secondDayOfMonth,
-      source: data.source,
-      sourceRowHash: data.sourceRowHash,
-      notes: data.notes,
-      updatedAt: new Date()
-    })
-    .where(eq(transactions.id, existing.id));
+  const updateValues = {
+    date: data.date,
+    description: data.description,
+    amount: data.amount.toFixed(2),
+    categoryId: data.categoryId,
+    transactionType: data.transactionType,
+    status: data.status,
+    amountType: data.amountType,
+    paymentMethod: data.paymentMethod,
+    recurringGroupId: data.recurringGroupId,
+    frequency: data.frequency,
+    recurringEndDate: data.recurringEndDate,
+    dayOfMonth: data.dayOfMonth,
+    secondDayOfMonth: data.secondDayOfMonth,
+    source: data.source,
+    sourceRowHash: data.sourceRowHash,
+    notes: data.notes
+  };
+
+  const editScope = req.body.recurringEditScope === "future" ? "future" : "this";
+  if (existing.recurringGroupId) {
+    await updateRecurringTransactionWithLifecycle(existing, updateValues, editScope);
+  } else {
+    await db.update(transactions).set({ ...updateValues, updatedAt: new Date() }).where(eq(transactions.id, existing.id));
+  }
 
   req.flash("success", "Register transaction updated.");
   res.redirect(redirectToRegister(account.id));
@@ -229,7 +239,11 @@ export const voidAccountRegisterTransaction = async (req: Request, res: Response
     return;
   }
 
-  await db.update(transactions).set({ status: "void", updatedAt: new Date() }).where(eq(transactions.id, transaction.id));
+  if (transaction.recurringGroupId) {
+    await voidRecurringTransactionWithLifecycle(transaction);
+  } else {
+    await db.update(transactions).set({ status: "void", updatedAt: new Date() }).where(eq(transactions.id, transaction.id));
+  }
   req.flash("success", "Register transaction voided.");
   res.redirect(redirectToRegister(account.id));
 };

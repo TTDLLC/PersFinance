@@ -21,6 +21,14 @@
     </div>
   </details>
 
+  <% if (transaction.id && transaction.recurringGroupId) { %>
+    <fieldset class="full">
+      <legend>Apply recurring edit to</legend>
+      <label><input type="radio" name="recurringEditScope" value="this" checked> This transaction only</label>
+      <label><input type="radio" name="recurringEditScope" value="future"> This and future transactions</label>
+    </fieldset>
+  <% } %>
+
   <details class="full">
     <summary>Source metadata</summary>
     <div class="details-grid">

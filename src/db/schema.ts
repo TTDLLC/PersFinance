@@ -2,6 +2,7 @@ import {
   boolean,
   date,
   integer,
+  index,
   numeric,
   pgEnum,
   pgTable,
@@ -47,6 +48,8 @@ export const scheduleTypeEnum = pgEnum("schedule_type", [
   "biweekly",
   "semimonthly",
   "monthly",
+  "quarterly",
+  "yearly",
   "custom"
 ]);
 
@@ -232,6 +235,21 @@ export const actualTransactions = pgTable("actual_transactions", {
   ...timestamps
 });
 
+export const accountStatements = pgTable(
+  "account_statements",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+    statementDate: date("statement_date").notNull(),
+    endingBalance: numeric("ending_balance", { precision: 12, scale: 2 }).notNull(),
+    reconciledAt: timestamp("reconciled_at", { withTimezone: true }).notNull().defaultNow(),
+    ...timestamps
+  },
+  (table) => ({
+    accountDateIdx: index("account_statements_account_date_idx").on(table.accountId, table.statementDate)
+  })
+);
+
 export const transactions = pgTable("transactions", {
   id: uuid("id").primaryKey().defaultRandom(),
   accountId: uuid("account_id").references(() => accounts.id, { onDelete: "set null" }),
@@ -239,6 +257,7 @@ export const transactions = pgTable("transactions", {
   date: date("date").notNull(),
   description: text("description").notNull(),
   amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
+  statementId: uuid("statement_id").references(() => accountStatements.id, { onDelete: "set null" }),
   transactionType: text("transaction_type"),
   status: transactionStatusEnum("status").notNull().default("entered"),
   amountType: amountTypeEnum("amount_type").notNull().default("fixed"),

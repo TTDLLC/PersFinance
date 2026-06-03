@@ -4,7 +4,7 @@ export const accountTypes = ["checking", "savings", "credit_card", "loan", "cash
 export const categoryTypes = ["income", "expense", "transfer", "debt", "other"] as const;
 export const recurringKinds = ["bill", "income", "transfer", "debt_payment"] as const;
 export const amountTypes = ["fixed", "estimate"] as const;
-export const scheduleTypes = ["weekly", "biweekly", "semimonthly", "monthly", "custom"] as const;
+export const scheduleTypes = ["weekly", "biweekly", "monthly", "quarterly", "yearly"] as const;
 export const paymentMethods = ["auto_payment", "bill_pay", "online_payment", "swiped", "check", "cash", "manual", "other"] as const;
 export const recurringStatuses = ["planned", "pending", "cleared", "reconciled", "estimate", "archived"] as const;
 export const futureTransactionTypes = ["bill", "income", "transfer", "debt_payment", "vacation_payment", "manual_adjustment", "purchase", "refund", "other"] as const;
@@ -33,6 +33,11 @@ const optionalDate = z.preprocess(
   z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable()
 );
 const requiredDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "A valid date is required.");
+const validCalendarDate = (value: string) => {
+  const [year, month, day] = value.split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
+};
 
 export const accountSchema = z
   .object({
@@ -125,6 +130,15 @@ export const transactionSchema = z
     message: "Second day must be between 1 and 31.",
     path: ["secondDayOfMonth"]
   });
+
+export const reconciliationSchema = z.object({
+  statementDate: requiredDate.refine(validCalendarDate, "A valid statement date is required."),
+  endingBalance: numberFromForm("Ending balance"),
+  selectedTransactionIds: z.preprocess((value) => {
+    if (value === undefined || value === "") return [];
+    return Array.isArray(value) ? value : [value];
+  }, z.array(z.string().uuid()))
+});
 
 export const scenarioSchema = z.object({
   name: requiredText("Name"),

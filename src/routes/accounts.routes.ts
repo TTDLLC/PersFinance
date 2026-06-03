@@ -8,6 +8,12 @@ import {
   updateAccount
 } from "../controllers/accounts.controller.js";
 import {
+  completeAccountReconciliation,
+  listAccountStatements,
+  showAccountReconciliation,
+  showAccountStatement
+} from "../controllers/accountStatements.controller.js";
+import {
   createAccountRegisterTransaction,
   editAccountRegisterTransaction,
   newAccountRegisterTransaction,
@@ -29,6 +35,10 @@ accountsRoutes.post("/:accountId/register", createAccountRegisterTransaction);
 accountsRoutes.get("/:accountId/register/:transactionId/edit", editAccountRegisterTransaction);
 accountsRoutes.post("/:accountId/register/:transactionId", updateAccountRegisterTransaction);
 accountsRoutes.post("/:accountId/register/:transactionId/void", voidAccountRegisterTransaction);
+accountsRoutes.get("/:accountId/reconcile", showAccountReconciliation);
+accountsRoutes.post("/:accountId/reconcile", completeAccountReconciliation);
+accountsRoutes.get("/:accountId/statements", listAccountStatements);
+accountsRoutes.get("/:accountId/statements/:statementId", showAccountStatement);
 accountsRoutes.get("/:id/edit", editAccount);
 accountsRoutes.post("/:id", updateAccount);
 accountsRoutes.post("/:id/archive", archiveAccount);

@@ -1,0 +1,36 @@
+<section class="page-header row">
+  <div>
+    <h1><%= account.name %> Statements</h1>
+    <p>Verified balance anchors for this account.</p>
+  </div>
+  <div class="form-actions">
+    <a class="button" href="/accounts/<%= account.id %>/reconcile">Reconcile</a>
+    <a class="button secondary-button" href="/accounts/<%= account.id %>/register">Register</a>
+  </div>
+</section>
+
+<table>
+  <thead>
+    <tr>
+      <th>Statement Date</th>
+      <th>Ending Balance</th>
+      <th>Reconciled Date</th>
+      <th>Transaction Count</th>
+      <th>Detail</th>
+    </tr>
+  </thead>
+  <tbody>
+    <% if (!statements.length) { %>
+      <tr><td class="empty-state" colspan="5">No statements have been reconciled for this account.</td></tr>
+    <% } %>
+    <% statements.forEach((statement) => { %>
+      <tr>
+        <td><%= statement.statementDate %></td>
+        <td class="<%= signedClass(statement.endingBalance) %>"><%= accountingMoney(statement.endingBalance) %></td>
+        <td><%= statement.reconciledAt.toISOString().slice(0, 10) %></td>
+        <td><%= statement.transactionCount %></td>
+        <td class="actions"><a href="/accounts/<%= account.id %>/statements/<%= statement.id %>">View</a></td>
+      </tr>
+    <% }) %>
+  </tbody>
+</table>

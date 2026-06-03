@@ -5,6 +5,10 @@ import { accounts, categories, transactions } from "../db/schema.js";
 import { editableRegisterStatuses, voidableRegisterStatuses } from "../services/accountRegister.service.js";
 import { getAllAccountWorkingBalances } from "../services/balance.service.js";
 import {
+  updateRecurringTransactionWithLifecycle,
+  voidRecurringTransactionWithLifecycle
+} from "../services/recurring.service.js";
+import {
   amountTypes,
   firstValidationMessage,
   paymentMethods,
@@ -158,29 +162,31 @@ export const updateTransaction = async (req: Request, res: Response) => {
   }
 
   const data = parsed.data;
-  await db
-    .update(transactions)
-    .set({
-      date: data.date,
-      description: data.description,
-      amount: data.amount.toFixed(2),
-      accountId: data.accountId,
-      categoryId: data.categoryId,
-      transactionType: data.transactionType,
-      status: data.status,
-      amountType: data.amountType,
-      paymentMethod: data.paymentMethod,
-      recurringGroupId: data.recurringGroupId,
-      frequency: data.frequency,
-      recurringEndDate: data.recurringEndDate,
-      dayOfMonth: data.dayOfMonth,
-      secondDayOfMonth: data.secondDayOfMonth,
-      source: data.source,
-      sourceRowHash: data.sourceRowHash,
-      notes: data.notes,
-      updatedAt: new Date()
-    })
-    .where(eq(transactions.id, req.params.id));
+  const updateValues = {
+    date: data.date,
+    description: data.description,
+    amount: data.amount.toFixed(2),
+    accountId: data.accountId,
+    categoryId: data.categoryId,
+    transactionType: data.transactionType,
+    status: data.status,
+    amountType: data.amountType,
+    paymentMethod: data.paymentMethod,
+    recurringGroupId: data.recurringGroupId,
+    frequency: data.frequency,
+    recurringEndDate: data.recurringEndDate,
+    dayOfMonth: data.dayOfMonth,
+    secondDayOfMonth: data.secondDayOfMonth,
+    source: data.source,
+    sourceRowHash: data.sourceRowHash,
+    notes: data.notes
+  };
+  const editScope = req.body.recurringEditScope === "future" ? "future" : "this";
+  if (existing.recurringGroupId) {
+    await updateRecurringTransactionWithLifecycle(existing, updateValues, editScope);
+  } else {
+    await db.update(transactions).set({ ...updateValues, updatedAt: new Date() }).where(eq(transactions.id, req.params.id));
+  }
   req.flash("success", "Register transaction updated.");
   res.redirect("/transactions");
 };
@@ -199,10 +205,14 @@ export const voidTransaction = async (req: Request, res: Response) => {
     return;
   }
 
-  await db
-    .update(transactions)
-    .set({ status: "void", updatedAt: new Date() })
-    .where(eq(transactions.id, req.params.id));
+  if (transaction.recurringGroupId) {
+    await voidRecurringTransactionWithLifecycle(transaction);
+  } else {
+    await db
+      .update(transactions)
+      .set({ status: "void", updatedAt: new Date() })
+      .where(eq(transactions.id, req.params.id));
+  }
   req.flash("success", "Register transaction voided.");
   res.redirect("/transactions");
 };
