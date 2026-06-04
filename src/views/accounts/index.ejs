@@ -1,5 +1,5 @@
 <section class="page-header row">
-  <div><h1>Accounts</h1><p>Register accounts, statement anchors, and working balances.</p></div>
+  <div><h1>Accounts</h1><p>Active accounts, register entry points, reconciliation, and statement history.</p></div>
   <a class="button" href="/accounts/new">New Account</a>
 </section>
 <table>
@@ -15,8 +15,8 @@
         <td class="<%= signedClass(account.currentBalance) %>"><%= money(account.currentBalance) %></td>
         <td><span class="status"><%= account.active ? "Active" : "Archived" %></span></td>
         <td class="actions account-actions">
-          <a href="/accounts/<%= account.id %>/register">Register</a>
           <a href="/accounts/<%= account.id %>/register/new">New Transaction</a>
+          <a href="/accounts/<%= account.id %>/register">Register</a>
           <a href="/accounts/<%= account.id %>/reconcile">Reconcile</a>
           <a href="/accounts/<%= account.id %>/statements">Statements</a>
           <a href="/accounts/<%= account.id %>/edit">Edit</a>

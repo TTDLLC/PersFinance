@@ -6,6 +6,7 @@ import { completeAccountReconciliation } from "../src/controllers/accountStateme
 import { db, pool } from "../src/db/index.js";
 import { accountBalanceSnapshots, accounts, accountStatements, categories, transactions, users } from "../src/db/schema.js";
 import { getAccountRegister, isBalanceAffectingRegisterStatus } from "../src/services/accountRegister.service.js";
+import { getRegisterProjections } from "../src/services/projection.service.js";
 import {
   calculateNextRecurringDate,
   processDueRecurringTransactions,
@@ -14,6 +15,7 @@ import {
 } from "../src/services/recurring.service.js";
 
 const testAccountName = "Register Flow Test Account";
+const projectionNoSnapshotAccountName = "Projection No Snapshot Test Account";
 const testCategoryName = "Register Flow Test Category";
 const testUserEmail = "register-flow-test@example.com";
 const testPassword = "register-flow-password";
@@ -41,6 +43,15 @@ const assertTextIncludes = (actual: string, expected: string[], label: string) =
 const assertTextExcludes = (actual: string, unexpected: string[], label: string) => {
   const found = unexpected.filter((text) => actual.includes(text));
   assert(!found.length, `${label}: unexpectedly found ${found.join(", ")}`);
+};
+
+const assertMainNav = (html: string, label: string) => {
+  assertTextIncludes(
+    html,
+    ['href="/dashboard"', 'href="/accounts"', 'href="/transactions"', 'href="/categories"', 'href="/projections"', 'href="/settings"'],
+    `${label} main nav`
+  );
+  assertTextExcludes(html, ['href="/future-transactions"', 'href="/recurring"', 'href="/scenarios"'], `${label} stale nav`);
 };
 
 const assertTransactionCount = async (recurringGroupId: string, date: string, status: "entered" | "recurring" | "void", expected: number) => {
@@ -79,7 +90,10 @@ const insertRecurringOccurrence = async (
 };
 
 const cleanup = async () => {
-  const staleAccounts = await db.select({ id: accounts.id }).from(accounts).where(eq(accounts.name, testAccountName));
+  const staleAccounts = await db
+    .select({ id: accounts.id })
+    .from(accounts)
+    .where(inArray(accounts.name, [testAccountName, projectionNoSnapshotAccountName]));
   const staleAccountIds = staleAccounts.map((account) => account.id);
   if (staleAccountIds.length) {
     await db.delete(transactions).where(inArray(transactions.accountId, staleAccountIds));
@@ -117,6 +131,17 @@ const main = async () => {
     })
     .returning({ id: accounts.id });
 
+  const [projectionNoSnapshotAccount] = await db
+    .insert(accounts)
+    .values({
+      name: projectionNoSnapshotAccountName,
+      type: "checking",
+      startingBalance: "0.00",
+      currentBalance: "0.00",
+      displayOrder: 1000
+    })
+    .returning({ id: accounts.id });
+
   const [category] = await db
     .insert(categories)
     .values({ name: testCategoryName, type: "expense", displayOrder: 999 })
@@ -147,6 +172,11 @@ const main = async () => {
       { accountId: account.id, categoryId: category.id, date: "2026-08-05", description: "Future beyond window", amount: "-60.00", status: "entered" }
     ]);
 
+    await db.insert(transactions).values([
+      { accountId: projectionNoSnapshotAccount.id, categoryId: category.id, date: "2026-06-01", description: "No snapshot past deposit", amount: "300.00", status: "cleared" },
+      { accountId: projectionNoSnapshotAccount.id, categoryId: category.id, date: "2026-06-20", description: "No snapshot future bill", amount: "-40.00", status: "entered" }
+    ]);
+
     const defaultRegister = await getAccountRegister(account.id, { today });
     if (!defaultRegister) throw new Error("Expected account register to load for valid account.");
     const defaultDescriptions = defaultRegister.rows.map((row) => row.description);
@@ -168,6 +198,35 @@ const main = async () => {
       assert(row.balanceAfter === expectedShowVoidBalance, `${row.description} should not include excluded transaction amounts in running balance.`);
     }
     assert(showVoidRegister.rows.at(-1)?.balanceAfter === defaultRegister.rows.at(-1)?.balanceAfter, "Showing void rows should not change the ending running balance.");
+
+    const projection = await getRegisterProjections({
+      accountId: account.id,
+      startDate: "2026-06-04",
+      endDate: "2026-08-31",
+      today
+    });
+    const projectionDescriptions = projection.rows.map((row) => row.description);
+    assertDescriptions(projectionDescriptions, ["Recurring future", "Future within window", "Future beyond window"], "Projection rows");
+    assertNotDescriptions(
+      projectionDescriptions,
+      ["Before latest snapshot", "Statement hidden", "Void hidden", "Entered expense", "Pending expense", "Cleared deposit"],
+      "Projection rows"
+    );
+    assert(projection.rows.find((row) => row.description === "Recurring future")?.projectedBalance === 975, "Projection should start from latest snapshot plus pre-window activity.");
+    assert(projection.rows.find((row) => row.description === "Future within window")?.projectedBalance === 945, "Projection should keep a running balance for future transactions.");
+    assert(projection.rows.find((row) => row.description === "Future beyond window")?.projectedBalance === 885, "Projection should include the full selected 90-day-style window.");
+
+    const noSnapshotProjection = await getRegisterProjections({
+      accountId: projectionNoSnapshotAccount.id,
+      startDate: "2026-06-04",
+      endDate: "2026-06-30",
+      today
+    });
+    assertDescriptions(noSnapshotProjection.rows.map((row) => row.description), ["No snapshot future bill"], "No-snapshot projection rows");
+    assert(
+      noSnapshotProjection.rows.find((row) => row.description === "No snapshot future bill")?.projectedBalance === 260,
+      "Projection without a snapshot should use the existing working balance service before applying future rows."
+    );
 
     assert(
       calculateNextRecurringDate({ date: "2026-01-01", frequency: "weekly", dayOfMonth: null }) === "2026-01-08",
@@ -330,16 +389,52 @@ const main = async () => {
       assert(html.includes("Register Flow Test Account Register"), "Register route should render the account register.");
       assert(html.includes("($50.00)"), "Negative amounts should display with parentheses.");
       assert(html.includes("future-row"), "Future rows should render with the future-row CSS class.");
-      assert(!html.includes("/future-transactions"), "Layout nav should not include the old future transactions route.");
-      assert(!html.includes("/recurring"), "Layout nav should not include the old standalone recurring route.");
-      assert(html.includes("/projections"), "Layout nav should include the projection placeholder route.");
+      assertMainNav(html, "Register route");
+
+      const dashboardResponse = await fetch(`${server.baseUrl}/dashboard`, {
+        headers: { Cookie: cookie }
+      });
+      const dashboardHtml = await dashboardResponse.text();
+      assert(dashboardResponse.status === 200, "Dashboard route should load.");
+      assertMainNav(dashboardHtml, "Dashboard route");
+      assertTextExcludes(dashboardHtml, ["Projection rebuild"], "Dashboard copy");
+
+      const accountsResponse = await fetch(`${server.baseUrl}/accounts`, {
+        headers: { Cookie: cookie }
+      });
+      const accountsHtml = await accountsResponse.text();
+      assert(accountsResponse.status === 200, "Accounts route should load.");
+      assertMainNav(accountsHtml, "Accounts route");
+      assertTextIncludes(
+        accountsHtml,
+        [
+          `/accounts/${account.id}/register/new`,
+          `/accounts/${account.id}/register`,
+          `/accounts/${account.id}/reconcile`,
+          `/accounts/${account.id}/statements`,
+          `/accounts/${account.id}/edit`
+        ],
+        "Account action links"
+      );
 
       const projectionResponse = await fetch(`${server.baseUrl}/projections`, {
         headers: { Cookie: cookie }
       });
       const projectionHtml = await projectionResponse.text();
-      assert(projectionResponse.status === 200, "Projection placeholder route should load.");
-      assert(projectionHtml.includes("Projection planning is being rebuilt"), "Projection route should render the 1.0 placeholder.");
+      assert(projectionResponse.status === 200, "Projection route should load.");
+      assertMainNav(projectionHtml, "Projection route");
+      assert(projectionHtml.includes("Upcoming register activity"), "Projection route should render the 1.0 projection page.");
+      assert(projectionHtml.includes("Recurring future"), "Projection route should render real register-based projection rows.");
+      assert(!projectionHtml.includes("Statement hidden"), "Projection route should exclude statement transactions.");
+      assert(!projectionHtml.includes("Void hidden"), "Projection route should exclude void transactions.");
+
+      const settingsResponse = await fetch(`${server.baseUrl}/settings`, {
+        headers: { Cookie: cookie }
+      });
+      const settingsHtml = await settingsResponse.text();
+      assert(settingsResponse.status === 200, "Settings route should load.");
+      assertMainNav(settingsHtml, "Settings route");
+      assertTextIncludes(settingsHtml, ["Register Window", "REGISTER_FUTURE_WINDOW_DAYS"], "Settings launch configuration");
 
       const oldFutureRouteResponse = await fetch(`${server.baseUrl}/future-transactions`, {
         headers: { Cookie: cookie },
@@ -351,6 +446,11 @@ const main = async () => {
         redirect: "manual"
       });
       assert(oldStandaloneRecurringRouteResponse.status === 404, "Old standalone recurring route should be removed from the active app.");
+      const deferredScenariosRouteResponse = await fetch(`${server.baseUrl}/scenarios`, {
+        headers: { Cookie: cookie },
+        redirect: "manual"
+      });
+      assert(deferredScenariosRouteResponse.status === 404, "Deferred scenarios route should be disabled for the active 1.0 app.");
 
       const duplicateCategoryResponse = await fetch(`${server.baseUrl}/categories`, {
         method: "POST",
@@ -368,6 +468,16 @@ const main = async () => {
       assert(archiveCategoryResponse.status === 302, "Categories should archive instead of hard-delete.");
       const [archivedCategory] = await db.select({ active: categories.active }).from(categories).where(eq(categories.id, category.id)).limit(1);
       assert(archivedCategory.active === false, "Archived category should be marked inactive.");
+      const archivedHiddenResponse = await fetch(`${server.baseUrl}/categories`, {
+        headers: { Cookie: cookie }
+      });
+      const archivedHiddenHtml = await archivedHiddenResponse.text();
+      assertTextExcludes(archivedHiddenHtml, [testCategoryName], "Archived categories should be hidden by default.");
+      const archivedVisibleResponse = await fetch(`${server.baseUrl}/categories?showArchived=true`, {
+        headers: { Cookie: cookie }
+      });
+      const archivedVisibleHtml = await archivedVisibleResponse.text();
+      assertTextIncludes(archivedVisibleHtml, [testCategoryName, "Archived"], "Archived categories should be visible when requested.");
       const newRegisterTransactionResponse = await fetch(`${server.baseUrl}/accounts/${account.id}/register/new`, {
         headers: { Cookie: cookie }
       });
@@ -398,6 +508,8 @@ const main = async () => {
         redirect: "manual"
       });
       assert(blockedBalanceEditResponse.status === 422, "Account balance edits should be blocked after transactions or snapshots exist.");
+      const blockedBalanceEditHtml = await blockedBalanceEditResponse.text();
+      assertTextIncludes(blockedBalanceEditHtml, ["Balances Locked", "disabled"], "Locked account balance fields");
       const [accountAfterBlockedBalanceEdit] = await db.select({ currentBalance: accounts.currentBalance }).from(accounts).where(eq(accounts.id, account.id)).limit(1);
       assert(Number(accountAfterBlockedBalanceEdit.currentBalance) === 0, "Blocked account balance edit should not update current balance.");
 

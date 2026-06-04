@@ -1,8 +1,9 @@
 import { and, asc, desc, eq, gt, lte, ne, type SQL } from "drizzle-orm";
+import { env } from "../config/env.js";
 import { db } from "../db/index.js";
 import { accountBalanceSnapshots, accounts, categories, transactions } from "../db/schema.js";
 
-export const REGISTER_FUTURE_WINDOW_DAYS = 60; // TODO: make configurable when register settings exist.
+export const REGISTER_FUTURE_WINDOW_DAYS = env.REGISTER_FUTURE_WINDOW_DAYS;
 
 export const registerStatuses = ["entered", "pending", "cleared", "statement", "recurring", "void"] as const;
 export const balanceAffectingRegisterStatuses = ["entered", "pending", "cleared", "recurring"] as const;

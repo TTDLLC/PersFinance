@@ -1,8 +1,16 @@
 # PersFinance 1.0 Cleanup Tracker
 
-## Old database cleanup
+## Completed Phase 1-4 Cleanup
 
-Completed in Phase 3 by `src/db/migrations/0006_old_model_database_cleanup.sql`:
+Core 1.0 workflow:
+
+- Account register and `transactions` are the source of truth.
+- Future-dated activity is represented by future-dated register transactions.
+- Recurring activity uses register transactions with recurring lifecycle metadata.
+- Reconciliation uses account statements, balance snapshots, and statement-locked register transactions.
+- Projections are rebuilt from active accounts, register transactions, and balance snapshots.
+
+Old model database cleanup completed in Phase 3 by `src/db/migrations/0006_old_model_database_cleanup.sql`:
 
 - Dropped `future_transactions`
 - Dropped `recurring_transactions`
@@ -19,20 +27,30 @@ Intentionally retained:
 - Historical migration SQL and Drizzle snapshot metadata still describe the schema at those migration points and should remain immutable.
 - `amount_type`, `payment_method`, and `schedule_type` remain active because the register `transactions` lifecycle uses them.
 
-## Projection rebuild
+## Completed Phase 5 Polish
 
-The old projection implementation was removed because it depended on `future_transactions` and standalone `recurring_transactions`.
+- `REGISTER_FUTURE_WINDOW_DAYS` is now configured by environment through `src/config/env.ts`.
+- The default register future window remains 60 days.
+- Settings displays the active register future window as read-only launch configuration.
+- Main navigation reflects the active 1.0 workflow: Dashboard, Accounts, Register, Categories, Projections, Settings.
+- The old projection placeholder was replaced by the register-based projections page.
+- Scenarios are deferred to 1.1 and the `/scenarios` route is intentionally disabled for the active 1.0 app.
 
-Rebuild target: implement projections from the 1.0 source of truth:
+## Remaining 1.0 Items
 
-- register `transactions`
-- future-dated register transactions
-- register recurring lifecycle metadata
-- latest account balance snapshots
-- statement-locked transactions excluded from post-snapshot activity
-- scenarios only after the register-based projection shape is clear
+No known functional blockers remain for the 1.0 register, reconciliation, balance, or projection workflows.
 
-## Register configuration follow-up
+Operational launch checks still apply:
 
-- `REGISTER_FUTURE_WINDOW_DAYS` is centralized in `src/services/accountRegister.service.ts` and currently fixed at 60 days.
-- Add user/app configuration for the active register future window after the core 1.0 register workflow settles.
+- Confirm production `DATABASE_URL` and `SESSION_SECRET`.
+- Set `REGISTER_FUTURE_WINDOW_DAYS` if production should use a value other than 60.
+- Run migrations against the launch database.
+- Run the smoke checks against the launch database before opening the app to users.
+
+## Deferred Post-1.0 / 1.1 Items
+
+- Register-native scenario assignment model.
+- Scenario projections once that register-native model exists.
+- Advanced projection reporting, summaries, and charts.
+- Dashboard enhancements beyond current working-balance and planning entry points.
+- Editable settings UI for runtime preferences if needed after launch.

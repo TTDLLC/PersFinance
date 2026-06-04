@@ -46,7 +46,7 @@
     <p><strong>Recurring</strong>: future scheduled occurrence; it rolls forward when due.</p>
     <p><strong>Statement</strong> and <strong>Void</strong> are locked lifecycle states managed by reconciliation and void actions.</p>
   </div>
-  <div class="form-actions full"><button type="submit">Save</button><a href="/accounts/<%= account.id %>/register">Cancel</a></div>
+  <div class="form-actions full"><button type="submit">Save Transaction</button><a href="/accounts/<%= account.id %>/register">Cancel</a></div>
 </form>
 
 <% if (transaction.id && ["entered", "pending", "cleared", "recurring"].includes(transaction.status)) { %>

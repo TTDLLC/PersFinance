@@ -1,6 +1,5 @@
 <section class="page-header row">
-  <div><h1>Scenarios</h1><p>Planning contexts reserved for the rebuilt register-based projection model.</p></div>
-  <a class="button" href="/scenarios/new">New Scenario</a>
+  <div><h1>Scenarios</h1><p>Deferred planning contexts for a future register-native scenario model.</p></div>
 </section>
 <table>
   <thead><tr><th>Name</th><th>Description</th><th>Status</th><th></th></tr></thead>
@@ -9,7 +8,7 @@
       <tr><td class="empty-state" colspan="4">No scenarios yet. Create optional overlays for what-if plans.</td></tr>
     <% } %>
     <% scenarios.forEach((scenario) => { %>
-      <tr class="<%= scenario.active ? "" : "muted" %>"><td><%= scenario.name %></td><td><%= scenario.description || "" %></td><td><span class="status"><%= scenario.active ? "Active" : "Inactive" %></span></td><td class="actions"><a href="/scenarios/<%= scenario.id %>/edit">Edit</a></td></tr>
+      <tr class="<%= scenario.active ? "" : "muted" %>"><td><%= scenario.name %></td><td><%= scenario.description || "" %></td><td><span class="status"><%= scenario.active ? "Active" : "Inactive" %></span></td><td class="actions">Deferred to 1.1</td></tr>
     <% }) %>
   </tbody>
 </table>

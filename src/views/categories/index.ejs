@@ -1,5 +1,5 @@
 <section class="page-header row">
-  <div><h1>Categories</h1><p>Income, expense, transfer, and debt grouping.</p></div>
+  <div><h1>Categories</h1><p>Labels for register transactions; archived categories remain on historical rows.</p></div>
   <a class="button" href="/categories/new">New Category</a>
 </section>
 
@@ -16,7 +16,7 @@
   <thead><tr><th>Name</th><th>Type</th><th>Order</th><th>Usage</th><th>Status</th><th></th></tr></thead>
   <tbody>
     <% if (!categories.length) { %>
-      <tr><td class="empty-state" colspan="6">No categories match this filter.</td></tr>
+      <tr><td class="empty-state" colspan="6">No categories match the current filter.</td></tr>
     <% } %>
     <% categories.forEach((category) => { %>
       <tr class="<%= category.active ? "" : "muted" %>">

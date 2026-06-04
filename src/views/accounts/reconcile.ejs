@@ -1,7 +1,7 @@
 <section class="page-header row">
   <div>
     <h1><%= reconciliation.account.name %> Reconciliation</h1>
-    <p>Snapshot <%= reconciliation.latestSnapshotDate || "none" %> at <%= money(reconciliation.latestSnapshotBalance) %>.</p>
+    <p>Select cleared activity that belongs to the statement, then save a new balance snapshot.</p>
   </div>
   <div class="form-actions">
     <a class="button secondary-button" href="/accounts/<%= reconciliation.account.id %>/statements">Statements</a>
@@ -52,7 +52,7 @@
     </thead>
     <tbody>
       <% if (!reconciliation.eligibleTransactions.length) { %>
-        <tr><td class="empty-state" colspan="5">No eligible transactions to reconcile.</td></tr>
+        <tr><td class="empty-state" colspan="5">No pending or cleared transactions are eligible for reconciliation.</td></tr>
       <% } %>
       <% reconciliation.eligibleTransactions.forEach((transaction) => { %>
         <tr>

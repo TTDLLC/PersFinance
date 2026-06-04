@@ -1,7 +1,7 @@
 <section class="page-header row">
   <div>
     <h1><%= register.account.name %> Register</h1>
-    <p>Snapshot <%= register.latestSnapshotDate || "none" %> at <%= money(register.latestSnapshotBalance) %>; future through <%= register.futureThroughDate %>.</p>
+    <p>Working from snapshot <%= register.latestSnapshotDate || "none" %> at <%= money(register.latestSnapshotBalance) %>; future rows through <%= register.futureThroughDate %>.</p>
   </div>
   <a class="button" href="/accounts/<%= register.account.id %>/register/new">New Transaction</a>
 </section>
@@ -10,11 +10,11 @@
   <input type="hidden" name="showFuture" value="false">
   <label class="checkbox">
     <input type="checkbox" name="showFuture" value="true" <%= register.showFuture ? "checked" : "" %>>
-    Show future
+    Show future rows
   </label>
   <label class="checkbox">
     <input type="checkbox" name="showVoid" value="true" <%= register.showVoid ? "checked" : "" %>>
-    Show void
+    Show void rows
   </label>
   <button type="submit">Update</button>
 </form>
@@ -40,7 +40,7 @@
   </thead>
   <tbody>
     <% if (!register.rows.length) { %>
-      <tr><td class="empty-state" colspan="8">No register transactions in this window.</td></tr>
+      <tr><td class="empty-state" colspan="8">No active register transactions in this window.</td></tr>
     <% } %>
     <% register.rows.forEach((item) => { %>
       <tr class="<%= item.isFuture ? "future-row" : "" %> <%= item.status === "void" ? "void-row" : "" %>">

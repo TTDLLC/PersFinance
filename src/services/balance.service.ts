@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gt, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, lte } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { accountBalanceSnapshots, accounts, transactions } from "../db/schema.js";
 
@@ -19,7 +19,14 @@ export type AccountWorkingBalance = {
   workingBalance: number;
 };
 
-export const getAccountWorkingBalance = async (accountId: string): Promise<AccountWorkingBalance | null> => {
+export type AccountWorkingBalanceOptions = {
+  throughDate?: string;
+};
+
+export const getAccountWorkingBalance = async (
+  accountId: string,
+  options: AccountWorkingBalanceOptions = {}
+): Promise<AccountWorkingBalance | null> => {
   const [account] = await db.select().from(accounts).where(eq(accounts.id, accountId)).limit(1);
   if (!account) return null;
 
@@ -35,6 +42,7 @@ export const getAccountWorkingBalance = async (accountId: string): Promise<Accou
     inArray(transactions.status, balanceAffectingStatuses)
   ];
   if (snapshot) activityFilters.push(gt(transactions.date, snapshot.snapshotDate));
+  if (options.throughDate) activityFilters.push(lte(transactions.date, options.throughDate));
 
   const activity = await db
     .select({ amount: transactions.amount })

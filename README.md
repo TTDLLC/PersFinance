@@ -1,8 +1,8 @@
 # Personal Finance Projection App
 
-A standalone personal cash-flow projection app for Robert. The app is intended to replace a spreadsheet workflow for accounts, recurring income and bills, one-off future transactions, scenarios, and monthly balance projections.
+A standalone personal cash-flow projection app for Robert. The 1.0 workflow centers on accounts, register transactions, categories, account projections, and launch settings.
 
-This is a cash-flow projection tool, not a traditional budgeting app. Its core question is: what will balances look like over time based on expected income, bills, and planned future transactions?
+This is a cash-flow projection tool, not a traditional budgeting app. Its core question is: what will balances look like over time based on the account register, future-dated register rows, recurring lifecycle rows, and statement balance snapshots?
 
 ## Required Software
 
@@ -41,6 +41,7 @@ Update `.env` with your database password, session secret, and initial admin cre
 ```env
 DATABASE_URL=postgresql://finance_app:change-this-password@localhost:5432/finance_projection
 SESSION_SECRET=use-a-long-random-secret
+REGISTER_FUTURE_WINDOW_DAYS=60
 INITIAL_ADMIN_EMAIL=robert@example.com
 INITIAL_ADMIN_PASSWORD=change-me-to-a-real-password
 SEED_DEMO_DATA=false
@@ -84,9 +85,8 @@ The seed script creates:
 
 - Initial admin user from `INITIAL_ADMIN_EMAIL` and `INITIAL_ADMIN_PASSWORD`
 - Default categories
-- Default projection settings
 
-To also create a small developer dataset with 2 accounts, recurring income, recurring bills, an optional `Vacation Heavy Plan` scenario overlay, and a future vacation payment assigned to that scenario:
+To also create a small developer dataset with accounts, categories, and register activity:
 
 ```bash
 npm run seed:dev
@@ -129,14 +129,13 @@ scripts/
 ## Functional Pages
 
 - Login/logout
-- Dashboard placeholder
+- Dashboard
 - Accounts CRUD and archive
+- Account register, reconciliation, and statements
 - Categories CRUD and archive
-- Recurring transactions CRUD and archive
-- Future transactions CRUD and delete
-- Scenarios CRUD
-- Monthly projection summary and generated rows
-- Settings placeholder showing projection defaults
+- Register transaction entry and lifecycle actions
+- Register-based projections
+- Settings launch configuration
 
 ## Current Projection Scope
 
