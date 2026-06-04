@@ -33,7 +33,6 @@ const main = async () => {
       type: "checking",
       startingBalance: "0.00",
       currentBalance: "0.00",
-      includeInProjection: false,
       displayOrder: 999
     })
     .returning({ id: accounts.id });

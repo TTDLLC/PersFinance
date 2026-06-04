@@ -2,10 +2,22 @@
 <form method="post" action="<%= account.id ? `/accounts/${account.id}` : "/accounts" %>" class="form grid-form">
   <label>Name<input name="name" value="<%= account.name || "" %>" required></label>
   <label>Type<select name="type"><% accountTypes.forEach((type) => { %><option value="<%= type %>" <%= account.type === type ? "selected" : "" %>><%= label(type) %></option><% }) %></select></label>
-  <label>Starting Balance<input type="number" step="0.01" name="startingBalance" value="<%= account.startingBalance || "0.00" %>"></label>
-  <label>Current Balance<input type="number" step="0.01" name="currentBalance" value="<%= account.currentBalance || account.startingBalance || "0.00" %>"></label>
+  <label>Starting Balance
+    <% if (balanceLocked) { %><input type="hidden" name="startingBalance" value="<%= account.startingBalance || "0.00" %>"><% } %>
+    <input type="number" step="0.01" name="<%= balanceLocked ? "" : "startingBalance" %>" value="<%= account.startingBalance || "0.00" %>" <%= balanceLocked ? "disabled" : "" %>>
+  </label>
+  <label>Current Balance
+    <% if (balanceLocked) { %><input type="hidden" name="currentBalance" value="<%= account.currentBalance || account.startingBalance || "0.00" %>"><% } %>
+    <input type="number" step="0.01" name="<%= balanceLocked ? "" : "currentBalance" %>" value="<%= account.currentBalance || account.startingBalance || "0.00" %>" <%= balanceLocked ? "disabled" : "" %>>
+  </label>
   <label>Display Order<input type="number" name="displayOrder" value="<%= account.displayOrder || 0 %>"></label>
-  <label class="checkbox"><input type="checkbox" name="includeInProjection" <%= account.includeInProjection !== false ? "checked" : "" %>> Include in projection</label>
+  <% if (balanceLocked) { %>
+    <div class="panel full">
+      <h2>Balances Locked</h2>
+      <p>Balances are locked because this account has <%= activityCounts.transactionCount %> transaction(s) or <%= activityCounts.snapshotCount %> snapshot(s).</p>
+      <p class="muted">Use register transactions or statement reconciliation to change the trusted balance.</p>
+    </div>
+  <% } %>
   <label class="full">Notes<textarea name="notes"><%= account.notes || "" %></textarea></label>
   <div class="form-actions full"><button type="submit">Save</button><a href="/accounts">Cancel</a></div>
 </form>

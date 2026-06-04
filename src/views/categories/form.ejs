@@ -3,6 +3,15 @@
   <label>Name<input name="name" value="<%= category.name || "" %>" required></label>
   <label>Type<select name="type"><% categoryTypes.forEach((type) => { %><option value="<%= type %>" <%= category.type === type ? "selected" : "" %>><%= label(type) %></option><% }) %></select></label>
   <label>Display Order<input type="number" name="displayOrder" value="<%= category.displayOrder || 0 %>"></label>
+  <% if (category.id) { %>
+    <div class="panel full">
+      <h2>Category Usage</h2>
+      <p><%= usageCount %> register transaction(s) currently reference this category.</p>
+      <% if (category.active) { %>
+        <p class="muted">Archiving keeps historical transactions labeled, but removes the category from new transaction selection.</p>
+      <% } %>
+    </div>
+  <% } %>
   <div class="form-actions full"><button type="submit">Save</button><a href="/categories">Cancel</a></div>
 </form>
 <% if (category.id && category.active) { %><form method="post" action="/categories/<%= category.id %>/archive"><button class="danger" type="submit">Archive Category</button></form><% } %>

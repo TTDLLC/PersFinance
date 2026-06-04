@@ -1,25 +1,21 @@
 import type { Request, Response } from "express";
-import {
-  buildDashboardProjectionMetrics,
-  buildMonthlySummary,
-  buildProjectionRows
-} from "../services/projection.service.js";
 import { getAllAccountWorkingBalances } from "../services/balance.service.js";
 
 export const showDashboard = async (_req: Request, res: Response) => {
-  const [monthlySummary, metrics, projectionRows, workingBalances] = await Promise.all([
-    buildMonthlySummary({ monthsAhead: 3 }),
-    buildDashboardProjectionMetrics(),
-    buildProjectionRows({ monthsAhead: 3 }),
-    getAllAccountWorkingBalances()
-  ]);
+  const workingBalances = await getAllAccountWorkingBalances();
+  const totalWorkingBalance = workingBalances.reduce((sum, balance) => sum + balance.workingBalance, 0);
+  const totalSnapshotBalance = workingBalances.reduce((sum, balance) => sum + balance.latestSnapshotBalance, 0);
+  const totalPostSnapshotActivity = workingBalances.reduce((sum, balance) => sum + balance.postSnapshotActivityTotal, 0);
 
   res.render("layout", {
     title: "Dashboard",
     view: "dashboard/index",
-    monthlySummary: monthlySummary.slice(0, 3),
-    upcomingRows: projectionRows.slice(0, 10),
     workingBalances,
-    metrics
+    metrics: {
+      totalWorkingBalance,
+      totalSnapshotBalance,
+      totalPostSnapshotActivity,
+      accountCount: workingBalances.length
+    }
   });
 };

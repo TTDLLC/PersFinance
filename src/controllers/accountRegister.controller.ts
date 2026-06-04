@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import { asc, eq } from "drizzle-orm";
+import { asc, desc, eq, or } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { accounts, categories, transactions } from "../db/schema.js";
 import {
@@ -18,18 +18,22 @@ import {
   firstValidationMessage,
   paymentMethods,
   scheduleTypes,
-  transactionSchema,
-  transactionStatuses
+  transactionSchema
 } from "../validation/forms.js";
 
 const today = () => new Date().toISOString().slice(0, 10);
+const formTransactionStatuses = ["entered", "pending", "cleared", "recurring"] as const;
 
-const getFormData = async () => ({
-  categories: await db.select().from(categories).where(eq(categories.active, true)).orderBy(asc(categories.name)),
+const getFormData = async (currentCategoryId?: string | null) => ({
+  categories: await db
+    .select()
+    .from(categories)
+    .where(currentCategoryId ? or(eq(categories.active, true), eq(categories.id, currentCategoryId)) : eq(categories.active, true))
+    .orderBy(desc(categories.active), asc(categories.name)),
   amountTypes,
   paymentMethods,
   scheduleTypes,
-  statuses: transactionStatuses
+  statuses: formTransactionStatuses
 });
 
 const accountExists = async (accountId: string) => {
@@ -37,10 +41,10 @@ const accountExists = async (accountId: string) => {
   return account ?? null;
 };
 
-const categoryExists = async (categoryId: string | null) => {
+const categoryIsSelectable = async (categoryId: string | null, existingCategoryId?: string | null) => {
   if (!categoryId) return true;
-  const [category] = await db.select({ id: categories.id }).from(categories).where(eq(categories.id, categoryId)).limit(1);
-  return Boolean(category);
+  const [category] = await db.select({ id: categories.id, active: categories.active }).from(categories).where(eq(categories.id, categoryId)).limit(1);
+  return Boolean(category?.active || (existingCategoryId && category?.id === existingCategoryId));
 };
 
 const redirectToRegister = (accountId: string) => `/accounts/${accountId}/register`;
@@ -104,8 +108,13 @@ export const createAccountRegisterTransaction = async (req: Request, res: Respon
   }
 
   const parsed = transactionSchema.safeParse({ ...req.body, accountId: account.id });
-  if (!parsed.success || !(await categoryExists(parsed.success ? parsed.data.categoryId : null))) {
-    req.flash("error", parsed.success ? "Category not found." : firstValidationMessage(parsed.error));
+  if (!parsed.success || !formTransactionStatuses.includes(parsed.data.status as (typeof formTransactionStatuses)[number]) || !(await categoryIsSelectable(parsed.data.categoryId))) {
+    req.flash(
+      "error",
+      parsed.success
+        ? "Status must be entered, pending, cleared, or recurring; category must be active for new transactions."
+        : firstValidationMessage(parsed.error)
+    );
     res.status(422).render("layout", {
       title: `New ${account.name} Transaction`,
       view: "accounts/register-form",
@@ -161,7 +170,7 @@ export const editAccountRegisterTransaction = async (req: Request, res: Response
     view: "accounts/register-form",
     account,
     transaction,
-    ...(await getFormData())
+    ...(await getFormData(transaction.categoryId))
   });
 };
 
@@ -181,14 +190,19 @@ export const updateAccountRegisterTransaction = async (req: Request, res: Respon
   }
 
   const parsed = transactionSchema.safeParse({ ...req.body, accountId: account.id });
-  if (!parsed.success || !(await categoryExists(parsed.success ? parsed.data.categoryId : null))) {
-    req.flash("error", parsed.success ? "Category not found." : firstValidationMessage(parsed.error));
+  if (!parsed.success || !formTransactionStatuses.includes(parsed.data.status as (typeof formTransactionStatuses)[number]) || !(await categoryIsSelectable(parsed.data.categoryId, existing.categoryId))) {
+    req.flash(
+      "error",
+      parsed.success
+        ? "Status must be entered, pending, cleared, or recurring; category must be active unless it is already assigned to this transaction."
+        : firstValidationMessage(parsed.error)
+    );
     res.status(422).render("layout", {
       title: `Edit ${account.name} Transaction`,
       view: "accounts/register-form",
       account,
       transaction: { ...req.body, id: existing.id, accountId: account.id },
-      ...(await getFormData())
+      ...(await getFormData(existing.categoryId))
     });
     return;
   }

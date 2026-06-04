@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import { and, asc, desc, eq, inArray, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, or, type SQL } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { accounts, categories, transactions } from "../db/schema.js";
 import { editableRegisterStatuses, voidableRegisterStatuses } from "../services/accountRegister.service.js";
@@ -13,18 +13,29 @@ import {
   firstValidationMessage,
   paymentMethods,
   scheduleTypes,
-  transactionSchema,
-  transactionStatuses
+  transactionSchema
 } from "../validation/forms.js";
 
-const getFormData = async () => ({
+const formTransactionStatuses = ["entered", "pending", "cleared", "recurring"] as const;
+
+const getFormData = async (currentCategoryId?: string | null) => ({
   accounts: await db.select().from(accounts).where(eq(accounts.active, true)).orderBy(asc(accounts.name)),
-  categories: await db.select().from(categories).where(eq(categories.active, true)).orderBy(asc(categories.name)),
+  categories: await db
+    .select()
+    .from(categories)
+    .where(currentCategoryId ? or(eq(categories.active, true), eq(categories.id, currentCategoryId)) : eq(categories.active, true))
+    .orderBy(desc(categories.active), asc(categories.name)),
   amountTypes,
   paymentMethods,
   scheduleTypes,
-  statuses: transactionStatuses
+  statuses: formTransactionStatuses
 });
+
+const categoryIsSelectable = async (categoryId: string | null, existingCategoryId?: string | null) => {
+  if (!categoryId) return true;
+  const [category] = await db.select({ id: categories.id, active: categories.active }).from(categories).where(eq(categories.id, categoryId)).limit(1);
+  return Boolean(category?.active || (existingCategoryId && category?.id === existingCategoryId));
+};
 
 export const listTransactions = async (req: Request, res: Response) => {
   const accountId = typeof req.query.accountId === "string" && req.query.accountId ? req.query.accountId : undefined;
@@ -78,8 +89,13 @@ export const newTransaction = async (_req: Request, res: Response) => {
 
 export const createTransaction = async (req: Request, res: Response) => {
   const parsed = transactionSchema.safeParse(req.body);
-  if (!parsed.success) {
-    req.flash("error", firstValidationMessage(parsed.error));
+  if (!parsed.success || !formTransactionStatuses.includes(parsed.data.status as (typeof formTransactionStatuses)[number]) || !(await categoryIsSelectable(parsed.data.categoryId))) {
+    req.flash(
+      "error",
+      parsed.success
+        ? "Status must be entered, pending, cleared, or recurring; category must be active for new transactions."
+        : firstValidationMessage(parsed.error)
+    );
     res.status(422).render("layout", {
       title: "New Register Transaction",
       view: "transactions/form",
@@ -131,7 +147,7 @@ export const editTransaction = async (req: Request, res: Response) => {
     title: "Edit Register Transaction",
     view: "transactions/form",
     transaction,
-    ...(await getFormData())
+    ...(await getFormData(transaction.categoryId))
   });
 };
 
@@ -150,13 +166,18 @@ export const updateTransaction = async (req: Request, res: Response) => {
   }
 
   const parsed = transactionSchema.safeParse(req.body);
-  if (!parsed.success) {
-    req.flash("error", firstValidationMessage(parsed.error));
+  if (!parsed.success || !formTransactionStatuses.includes(parsed.data.status as (typeof formTransactionStatuses)[number]) || !(await categoryIsSelectable(parsed.data.categoryId, existing.categoryId))) {
+    req.flash(
+      "error",
+      parsed.success
+        ? "Status must be entered, pending, cleared, or recurring; category must be active unless it is already assigned to this transaction."
+        : firstValidationMessage(parsed.error)
+    );
     res.status(422).render("layout", {
       title: "Edit Register Transaction",
       view: "transactions/form",
       transaction: { ...req.body, id: req.params.id },
-      ...(await getFormData())
+      ...(await getFormData(existing.categoryId))
     });
     return;
   }

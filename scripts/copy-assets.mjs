@@ -1,4 +1,4 @@
-import { cpSync, existsSync } from "node:fs";
+import { cpSync, existsSync, rmSync } from "node:fs";
 
 const assetDirs = [
   ["src/views", "dist/src/views"],
@@ -7,6 +7,7 @@ const assetDirs = [
 
 for (const [source, destination] of assetDirs) {
   if (existsSync(source)) {
+    rmSync(destination, { recursive: true, force: true });
     cpSync(source, destination, { recursive: true });
   }
 }

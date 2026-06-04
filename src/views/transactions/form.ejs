@@ -5,7 +5,7 @@
   <label>Amount<input type="number" step="0.01" name="amount" value="<%= transaction.amount || "" %>" required></label>
   <label>Type<input name="transactionType" value="<%= transaction.transactionType || "" %>" placeholder="purchase, income, transfer"></label>
   <label>Account<select name="accountId"><option value="">None</option><% accounts.forEach((account) => { %><option value="<%= account.id %>" <%= transaction.accountId === account.id ? "selected" : "" %>><%= account.name %></option><% }) %></select></label>
-  <label>Category<select name="categoryId"><option value="">None</option><% categories.forEach((category) => { %><option value="<%= category.id %>" <%= transaction.categoryId === category.id ? "selected" : "" %>><%= category.name %></option><% }) %></select></label>
+  <label>Category<select name="categoryId"><option value="">None</option><% categories.forEach((category) => { %><option value="<%= category.id %>" <%= transaction.categoryId === category.id ? "selected" : "" %>><%= category.name %><%= category.active ? "" : " (Archived)" %></option><% }) %></select></label>
   <label>Status<select name="status"><% statuses.forEach((status) => { %><option value="<%= status %>" <%= (transaction.status || "entered") === status ? "selected" : "" %>><%= label(status) %></option><% }) %></select></label>
   <label>Amount Type<select name="amountType"><% amountTypes.forEach((type) => { %><option value="<%= type %>" <%= (transaction.amountType || "fixed") === type ? "selected" : "" %>><%= label(type) %></option><% }) %></select></label>
   <label>Payment Method<select name="paymentMethod"><% paymentMethods.forEach((method) => { %><option value="<%= method %>" <%= (transaction.paymentMethod || "manual") === method ? "selected" : "" %>><%= label(method) %></option><% }) %></select></label>
@@ -38,6 +38,14 @@
   </details>
 
   <label class="full">Notes<textarea name="notes"><%= transaction.notes || "" %></textarea></label>
+  <div class="panel full status-help">
+    <h2>Status Guide</h2>
+    <p><strong>Entered</strong>: recorded by you and counted in the working balance.</p>
+    <p><strong>Pending</strong>: expected or bank-pending activity, counted in the working balance.</p>
+    <p><strong>Cleared</strong>: posted activity ready for statement reconciliation.</p>
+    <p><strong>Recurring</strong>: future scheduled occurrence; it rolls forward when due.</p>
+    <p><strong>Statement</strong> and <strong>Void</strong> are locked lifecycle states managed by reconciliation and void actions.</p>
+  </div>
   <div class="form-actions full"><button type="submit">Save</button><a href="/transactions">Cancel</a></div>
 </form>
 <% if (transaction.id && transaction.status !== "void") { %><form method="post" action="/transactions/<%= transaction.id %>/void"><button class="danger" type="submit">Void Transaction</button></form><% } %>

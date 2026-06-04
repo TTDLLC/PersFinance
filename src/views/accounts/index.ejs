@@ -1,21 +1,31 @@
 <section class="page-header row">
-  <div><h1>Accounts</h1><p>Starting and current balances used by projections.</p></div>
+  <div><h1>Accounts</h1><p>Register accounts, statement anchors, and working balances.</p></div>
   <a class="button" href="/accounts/new">New Account</a>
 </section>
 <table>
-  <thead><tr><th>Name</th><th>Type</th><th>Starting</th><th>Current</th><th>Projection</th><th>Status</th><th></th></tr></thead>
+  <thead><tr><th>Name</th><th>Type</th><th>Starting</th><th>Current</th><th>Status</th><th>Actions</th></tr></thead>
   <tbody>
     <% if (!accounts.length) { %>
-      <tr><td class="empty-state" colspan="7">No accounts yet. Add a projection account to start building cash-flow projections.</td></tr>
+      <tr><td class="empty-state" colspan="6">No accounts yet. Add an account to start building the register.</td></tr>
     <% } %>
     <% accounts.forEach((account) => { %>
       <tr class="<%= account.active ? "" : "muted" %>">
         <td><%= account.name %></td><td><%= label(account.type) %></td>
         <td class="<%= signedClass(account.startingBalance) %>"><%= money(account.startingBalance) %></td>
         <td class="<%= signedClass(account.currentBalance) %>"><%= money(account.currentBalance) %></td>
-        <td><span class="status"><%= account.includeInProjection ? "Included" : "Excluded" %></span></td>
         <td><span class="status"><%= account.active ? "Active" : "Archived" %></span></td>
-        <td class="actions"><a href="/accounts/<%= account.id %>/edit">Edit</a></td>
+        <td class="actions account-actions">
+          <a href="/accounts/<%= account.id %>/register">Register</a>
+          <a href="/accounts/<%= account.id %>/register/new">New Transaction</a>
+          <a href="/accounts/<%= account.id %>/reconcile">Reconcile</a>
+          <a href="/accounts/<%= account.id %>/statements">Statements</a>
+          <a href="/accounts/<%= account.id %>/edit">Edit</a>
+          <% if (account.active) { %>
+            <form method="post" action="/accounts/<%= account.id %>/archive">
+              <button class="link-button danger-link" type="submit">Archive</button>
+            </form>
+          <% } %>
+        </td>
       </tr>
     <% }) %>
   </tbody>

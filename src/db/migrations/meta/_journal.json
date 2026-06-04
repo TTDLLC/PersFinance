@@ -29,6 +29,20 @@
       "when": 1780531200000,
       "tag": "0004_statement_reconciliation",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1780617600000,
+      "tag": "0005_register_hardening",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1780704000000,
+      "tag": "0006_old_model_database_cleanup",
+      "breakpoints": true
     }
   ]
 }

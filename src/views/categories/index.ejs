@@ -2,14 +2,31 @@
   <div><h1>Categories</h1><p>Income, expense, transfer, and debt grouping.</p></div>
   <a class="button" href="/categories/new">New Category</a>
 </section>
+
+<form class="filter-bar" method="get" action="/categories">
+  <input type="hidden" name="showArchived" value="false">
+  <label class="checkbox">
+    <input type="checkbox" name="showArchived" value="true" <%= showArchived ? "checked" : "" %>>
+    Show archived
+  </label>
+  <button type="submit">Update</button>
+</form>
+
 <table>
-  <thead><tr><th>Name</th><th>Type</th><th>Order</th><th>Status</th><th></th></tr></thead>
+  <thead><tr><th>Name</th><th>Type</th><th>Order</th><th>Usage</th><th>Status</th><th></th></tr></thead>
   <tbody>
     <% if (!categories.length) { %>
-      <tr><td class="empty-state" colspan="5">No categories yet. Seed defaults or add a category.</td></tr>
+      <tr><td class="empty-state" colspan="6">No categories match this filter.</td></tr>
     <% } %>
     <% categories.forEach((category) => { %>
-      <tr class="<%= category.active ? "" : "muted" %>"><td><%= category.name %></td><td><%= label(category.type) %></td><td><%= category.displayOrder %></td><td><span class="status"><%= category.active ? "Active" : "Archived" %></span></td><td class="actions"><a href="/categories/<%= category.id %>/edit">Edit</a></td></tr>
+      <tr class="<%= category.active ? "" : "muted" %>">
+        <td><%= category.name %></td>
+        <td><%= label(category.type) %></td>
+        <td><%= category.displayOrder %></td>
+        <td><%= category.usageCount %></td>
+        <td><span class="status"><%= category.active ? "Active" : "Archived" %></span></td>
+        <td class="actions"><a href="/categories/<%= category.id %>/edit">Edit</a></td>
+      </tr>
     <% }) %>
   </tbody>
 </table>

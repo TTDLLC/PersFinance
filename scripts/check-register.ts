@@ -113,7 +113,6 @@ const main = async () => {
       type: "checking",
       startingBalance: "0.00",
       currentBalance: "0.00",
-      includeInProjection: false,
       displayOrder: 999
     })
     .returning({ id: accounts.id });
@@ -331,6 +330,76 @@ const main = async () => {
       assert(html.includes("Register Flow Test Account Register"), "Register route should render the account register.");
       assert(html.includes("($50.00)"), "Negative amounts should display with parentheses.");
       assert(html.includes("future-row"), "Future rows should render with the future-row CSS class.");
+      assert(!html.includes("/future-transactions"), "Layout nav should not include the old future transactions route.");
+      assert(!html.includes("/recurring"), "Layout nav should not include the old standalone recurring route.");
+      assert(html.includes("/projections"), "Layout nav should include the projection placeholder route.");
+
+      const projectionResponse = await fetch(`${server.baseUrl}/projections`, {
+        headers: { Cookie: cookie }
+      });
+      const projectionHtml = await projectionResponse.text();
+      assert(projectionResponse.status === 200, "Projection placeholder route should load.");
+      assert(projectionHtml.includes("Projection planning is being rebuilt"), "Projection route should render the 1.0 placeholder.");
+
+      const oldFutureRouteResponse = await fetch(`${server.baseUrl}/future-transactions`, {
+        headers: { Cookie: cookie },
+        redirect: "manual"
+      });
+      assert(oldFutureRouteResponse.status === 404, "Old future transactions route should be removed from the active app.");
+      const oldStandaloneRecurringRouteResponse = await fetch(`${server.baseUrl}/recurring`, {
+        headers: { Cookie: cookie },
+        redirect: "manual"
+      });
+      assert(oldStandaloneRecurringRouteResponse.status === 404, "Old standalone recurring route should be removed from the active app.");
+
+      const duplicateCategoryResponse = await fetch(`${server.baseUrl}/categories`, {
+        method: "POST",
+        headers: { Cookie: cookie, "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({ name: testCategoryName, type: "expense", displayOrder: "999" }),
+        redirect: "manual"
+      });
+      assert(duplicateCategoryResponse.status === 422, "Duplicate active category names should be rejected.");
+
+      const archiveCategoryResponse = await fetch(`${server.baseUrl}/categories/${category.id}/archive`, {
+        method: "POST",
+        headers: { Cookie: cookie },
+        redirect: "manual"
+      });
+      assert(archiveCategoryResponse.status === 302, "Categories should archive instead of hard-delete.");
+      const [archivedCategory] = await db.select({ active: categories.active }).from(categories).where(eq(categories.id, category.id)).limit(1);
+      assert(archivedCategory.active === false, "Archived category should be marked inactive.");
+      const newRegisterTransactionResponse = await fetch(`${server.baseUrl}/accounts/${account.id}/register/new`, {
+        headers: { Cookie: cookie }
+      });
+      const newRegisterTransactionHtml = await newRegisterTransactionResponse.text();
+      assert(newRegisterTransactionResponse.status === 200, "New register transaction form should load after category archive.");
+      assertTextExcludes(newRegisterTransactionHtml, [testCategoryName], "Archived categories should not be offered for new transaction selection.");
+
+      const blockedAccountArchiveResponse = await fetch(`${server.baseUrl}/accounts/${account.id}/archive`, {
+        method: "POST",
+        headers: { Cookie: cookie },
+        redirect: "manual"
+      });
+      assert(blockedAccountArchiveResponse.status === 302, "Account archive safeguard should redirect with an error.");
+      const [accountAfterBlockedArchive] = await db.select({ active: accounts.active }).from(accounts).where(eq(accounts.id, account.id)).limit(1);
+      assert(accountAfterBlockedArchive.active === true, "Accounts with active unreconciled register activity should not be archived.");
+
+      const blockedBalanceEditResponse = await fetch(`${server.baseUrl}/accounts/${account.id}`, {
+        method: "POST",
+        headers: { Cookie: cookie, "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          name: testAccountName,
+          type: "checking",
+          startingBalance: "0.00",
+          currentBalance: "9999.00",
+          displayOrder: "999",
+          notes: ""
+        }),
+        redirect: "manual"
+      });
+      assert(blockedBalanceEditResponse.status === 422, "Account balance edits should be blocked after transactions or snapshots exist.");
+      const [accountAfterBlockedBalanceEdit] = await db.select({ currentBalance: accounts.currentBalance }).from(accounts).where(eq(accounts.id, account.id)).limit(1);
+      assert(Number(accountAfterBlockedBalanceEdit.currentBalance) === 0, "Blocked account balance edit should not update current balance.");
 
       const [activeTransaction] = await db
         .select({ id: transactions.id })
@@ -358,6 +427,14 @@ const main = async () => {
         { headers: { Cookie: cookie }, redirect: "manual" }
       );
       assert(statementEditResponse.status === 302, "Statement transactions cannot be edited.");
+      const statementVoidResponse = await fetch(`${server.baseUrl}/transactions/${statementTransaction.id}/void`, {
+        method: "POST",
+        headers: { Cookie: cookie },
+        redirect: "manual"
+      });
+      assert(statementVoidResponse.status === 302, "Statement transactions cannot be voided from the global register route.");
+      const [statementAfterVoidAttempt] = await db.select({ status: transactions.status }).from(transactions).where(eq(transactions.id, statementTransaction.id)).limit(1);
+      assert(statementAfterVoidAttempt.status === "statement", "Statement transaction status should remain locked after void attempt.");
 
       const [voidTransaction] = await db
         .select({ id: transactions.id })

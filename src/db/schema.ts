@@ -34,13 +34,6 @@ export const categoryTypeEnum = pgEnum("category_type", [
   "other"
 ]);
 
-export const recurringKindEnum = pgEnum("recurring_kind", [
-  "bill",
-  "income",
-  "transfer",
-  "debt_payment"
-]);
-
 export const amountTypeEnum = pgEnum("amount_type", ["fixed", "estimate"]);
 
 export const scheduleTypeEnum = pgEnum("schedule_type", [
@@ -62,35 +55,6 @@ export const paymentMethodEnum = pgEnum("payment_method", [
   "cash",
   "manual",
   "other"
-]);
-
-export const recurringStatusEnum = pgEnum("recurring_status", [
-  "planned",
-  "pending",
-  "cleared",
-  "reconciled",
-  "estimate",
-  "archived"
-]);
-
-export const futureTransactionTypeEnum = pgEnum("future_transaction_type", [
-  "bill",
-  "income",
-  "transfer",
-  "debt_payment",
-  "vacation_payment",
-  "manual_adjustment",
-  "purchase",
-  "refund",
-  "other"
-]);
-
-export const futureTransactionStatusEnum = pgEnum("future_transaction_status", [
-  "planned",
-  "pending",
-  "cleared",
-  "estimate",
-  "cancelled"
 ]);
 
 export const importStatusEnum = pgEnum("import_status", [
@@ -137,7 +101,6 @@ export const accounts = pgTable("accounts", {
   type: accountTypeEnum("type").notNull(),
   startingBalance: numeric("starting_balance", { precision: 12, scale: 2 }).notNull().default("0"),
   currentBalance: numeric("current_balance", { precision: 12, scale: 2 }).notNull().default("0"),
-  includeInProjection: boolean("include_in_projection").notNull().default(true),
   active: boolean("active").notNull().default(true),
   displayOrder: integer("display_order").notNull().default(0),
   notes: text("notes"),
@@ -159,50 +122,6 @@ export const scenarios = pgTable("scenarios", {
   description: text("description"),
   isDefault: boolean("is_default").notNull().default(false),
   active: boolean("active").notNull().default(true),
-  ...timestamps
-});
-
-export const recurringTransactions = pgTable("recurring_transactions", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  name: text("name").notNull(),
-  kind: recurringKindEnum("kind").notNull(),
-  amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
-  amountType: amountTypeEnum("amount_type").notNull().default("fixed"),
-  scheduleType: scheduleTypeEnum("schedule_type").notNull(),
-  dayOfMonth: integer("day_of_month"),
-  secondDayOfMonth: integer("second_day_of_month"),
-  startDate: date("start_date").notNull(),
-  endDate: date("end_date"),
-  accountId: uuid("account_id").references(() => accounts.id, { onDelete: "set null" }),
-  categoryId: uuid("category_id").references(() => categories.id, { onDelete: "set null" }),
-  paymentMethod: paymentMethodEnum("payment_method").notNull().default("manual"),
-  status: recurringStatusEnum("status").notNull().default("planned"),
-  active: boolean("active").notNull().default(true),
-  notes: text("notes"),
-  ...timestamps
-});
-
-export const futureTransactions = pgTable("future_transactions", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  date: date("date").notNull(),
-  description: text("description").notNull(),
-  amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
-  accountId: uuid("account_id").references(() => accounts.id, { onDelete: "set null" }),
-  categoryId: uuid("category_id").references(() => categories.id, { onDelete: "set null" }),
-  transactionType: futureTransactionTypeEnum("transaction_type").notNull(),
-  status: futureTransactionStatusEnum("status").notNull().default("planned"),
-  scenarioId: uuid("scenario_id").references(() => scenarios.id, { onDelete: "set null" }),
-  includeInProjection: boolean("include_in_projection").notNull().default(true),
-  notes: text("notes"),
-  ...timestamps
-});
-
-export const projectionSettings = pgTable("projection_settings", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  defaultStartDate: date("default_start_date"),
-  defaultMonthsAhead: integer("default_months_ahead").notNull().default(18),
-  includeEstimates: boolean("include_estimates").notNull().default(true),
-  includePending: boolean("include_pending").notNull().default(true),
   ...timestamps
 });
 
