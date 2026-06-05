@@ -1,17 +1,18 @@
 <section class="page-header row">
-  <div><h1>Accounts</h1><p>Active accounts, register entry points, reconciliation, and statement history.</p></div>
+  <div><h1>Accounts</h1><p>Register entry points, reconciliation, and statement history.</p></div>
   <a class="button" href="/accounts/new">New Account</a>
 </section>
 <table>
-  <thead><tr><th>Name</th><th>Type</th><th>Starting</th><th>Current</th><th>Status</th><th>Actions</th></tr></thead>
+  <thead><tr><th>Name</th><th>Type</th><th>Starting Information</th><th>Current Balance</th><th>Status</th><th>Actions</th></tr></thead>
   <tbody>
     <% if (!accounts.length) { %>
       <tr><td class="empty-state" colspan="6">No accounts yet. Add an account to start building the register.</td></tr>
     <% } %>
     <% accounts.forEach((account) => { %>
       <tr class="<%= account.active ? "" : "muted" %>">
-        <td><%= account.name %></td><td><%= label(account.type) %></td>
-        <td class="<%= signedClass(account.startingBalance) %>"><%= money(account.startingBalance) %></td>
+        <td><%= account.name %></td>
+        <td><%= label(account.type) %></td>
+        <td><%= money(account.startingInformation.balance) %> on <%= account.startingInformation.date %></td>
         <td class="<%= signedClass(account.currentBalance) %>"><%= money(account.currentBalance) %></td>
         <td><span class="status"><%= account.active ? "Active" : "Archived" %></span></td>
         <td class="actions account-actions">

@@ -1,7 +1,7 @@
 <section class="page-header row">
   <div>
     <h1><%= reconciliation.account.name %> Reconciliation</h1>
-    <p>Select cleared activity that belongs to the statement, then save a new balance snapshot.</p>
+    <p>Select transactions from the statement. Nothing is assigned to the statement until the difference is exactly zero.</p>
   </div>
   <div class="form-actions">
     <a class="button secondary-button" href="/accounts/<%= reconciliation.account.id %>/statements">Statements</a>
@@ -14,29 +14,36 @@
   method="post"
   action="/accounts/<%= reconciliation.account.id %>/reconcile"
   data-reconcile-form
-  data-snapshot-balance="<%= reconciliation.latestSnapshotBalance %>"
+  data-starting-balance="<%= reconciliation.preview.startingBalance %>"
 >
   <div class="grid-form">
     <label>Statement Date
-      <input type="date" name="statementDate" value="<%= reconciliation.statementDate %>" required>
+      <input type="date" name="statementDate" value="<%= reconciliation.preview.statementDate %>" required>
+    </label>
+    <label>Previous Statement ID
+      <input value="<%= reconciliation.preview.previousStatementId %>" disabled>
+    </label>
+    <label>Starting Balance
+      <input value="<%= money(reconciliation.preview.startingBalance) %>" disabled>
     </label>
     <label>Ending Balance
-      <input type="number" step="0.01" name="endingBalance" value="<%= reconciliation.endingBalance %>" required data-ending-balance>
+      <input type="number" step="0.01" name="endingBalance" value="<%= reconciliation.preview.endingBalance %>" required data-ending-balance>
     </label>
+    <label class="full">Notes<textarea name="notes"></textarea></label>
   </div>
 
   <div class="metric-grid reconciliation-summary">
     <div class="metric-card">
       <span>Statement Ending Balance</span>
-      <strong data-statement-ending><%= money(reconciliation.endingBalance) %></strong>
+      <strong data-statement-ending><%= money(reconciliation.preview.endingBalance) %></strong>
     </div>
     <div class="metric-card">
       <span>Calculated Reconciled Balance</span>
-      <strong data-calculated-balance><%= money(reconciliation.calculatedReconciledBalance) %></strong>
+      <strong data-calculated-balance><%= money(reconciliation.preview.calculatedReconciledBalance) %></strong>
     </div>
     <div class="metric-card">
       <span>Difference</span>
-      <strong data-reconcile-difference class="<%= reconciliation.difference === 0 ? "positive" : "negative" %>"><%= accountingMoney(reconciliation.difference) %></strong>
+      <strong data-reconcile-difference class="<%= Number(reconciliation.preview.difference) === 0 ? "positive" : "negative" %>"><%= accountingMoney(reconciliation.preview.difference) %></strong>
     </div>
   </div>
 
@@ -45,16 +52,17 @@
       <tr>
         <th>Selected</th>
         <th>Date</th>
+        <th>Payee</th>
         <th>Description</th>
         <th>Amount</th>
         <th>Status</th>
       </tr>
     </thead>
     <tbody>
-      <% if (!reconciliation.eligibleTransactions.length) { %>
-        <tr><td class="empty-state" colspan="5">No pending or cleared transactions are eligible for reconciliation.</td></tr>
+      <% if (!reconciliation.preview.eligibleTransactions.length) { %>
+        <tr><td class="empty-state" colspan="6">No active non-void transactions are eligible for reconciliation.</td></tr>
       <% } %>
-      <% reconciliation.eligibleTransactions.forEach((transaction) => { %>
+      <% reconciliation.preview.eligibleTransactions.forEach((transaction) => { %>
         <tr>
           <td>
             <label class="checkbox compact-checkbox">
@@ -64,12 +72,13 @@
                 value="<%= transaction.id %>"
                 data-reconcile-transaction
                 data-amount="<%= transaction.amount %>"
-                <%= reconciliation.selectedTransactionIds.has(transaction.id) ? "checked" : "" %>
+                <%= reconciliation.preview.selectedTransactionIds.has(transaction.id) ? "checked" : "" %>
               >
             </label>
           </td>
           <td><%= transaction.date %></td>
-          <td><%= transaction.description %></td>
+          <td><%= transaction.payeeName %></td>
+          <td><%= transaction.description || "" %></td>
           <td class="<%= signedClass(transaction.amount) %>"><%= accountingMoney(transaction.amount) %></td>
           <td><span class="status"><%= label(transaction.status) %></span></td>
         </tr>
@@ -78,6 +87,6 @@
   </table>
 
   <div class="form-actions">
-    <button type="submit" data-complete-reconciliation <%= reconciliation.difference === 0 ? "" : "disabled" %>>Complete Reconciliation</button>
+    <button type="submit" data-complete-reconciliation <%= Number(reconciliation.preview.difference) === 0 ? "" : "disabled" %>>Complete Reconciliation</button>
   </div>
 </form>

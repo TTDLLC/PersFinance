@@ -1,7 +1,8 @@
 import type { Request, Response } from "express";
 import { asc, desc, eq, or } from "drizzle-orm";
 import { db } from "../db/index.js";
-import { accounts, categories, transactions } from "../db/schema.js";
+import { categories, payees, transactions } from "../db/schema.js";
+import { Accounts } from "../services/accounts.service.js";
 import {
   editableRegisterStatuses,
   findRegisterTransaction,
@@ -9,37 +10,33 @@ import {
   voidableRegisterStatuses
 } from "../services/accountRegister.service.js";
 import {
-  processDueRecurringTransactions,
-  updateRecurringTransactionWithLifecycle,
-  voidRecurringTransactionWithLifecycle
-} from "../services/recurring.service.js";
-import {
-  amountTypes,
   firstValidationMessage,
-  paymentMethods,
-  scheduleTypes,
-  transactionSchema
+  transactionSchema,
+  transactionStatuses
 } from "../validation/forms.js";
 
 const today = () => new Date().toISOString().slice(0, 10);
-const formTransactionStatuses = ["entered", "pending", "cleared", "recurring"] as const;
+const toMoney = (value: number) => value.toFixed(2);
 
-const getFormData = async (currentCategoryId?: string | null) => ({
+const selectedView = (value: unknown) => {
+  const option = Array.isArray(value) ? value[value.length - 1] : value;
+  if (option === "all" || option === "void") return option;
+  return "active";
+};
+
+const getFormData = async (currentCategoryId?: string | null, currentPayeeId?: string | null) => ({
   categories: await db
     .select()
     .from(categories)
     .where(currentCategoryId ? or(eq(categories.active, true), eq(categories.id, currentCategoryId)) : eq(categories.active, true))
     .orderBy(desc(categories.active), asc(categories.name)),
-  amountTypes,
-  paymentMethods,
-  scheduleTypes,
-  statuses: formTransactionStatuses
+  payees: await db
+    .select()
+    .from(payees)
+    .where(currentPayeeId ? or(eq(payees.active, true), eq(payees.id, currentPayeeId)) : eq(payees.active, true))
+    .orderBy(desc(payees.active), asc(payees.name)),
+  statuses: transactionStatuses.filter((status) => status !== "void")
 });
-
-const accountExists = async (accountId: string) => {
-  const [account] = await db.select().from(accounts).where(eq(accounts.id, accountId)).limit(1);
-  return account ?? null;
-};
 
 const categoryIsSelectable = async (categoryId: string | null, existingCategoryId?: string | null) => {
   if (!categoryId) return true;
@@ -47,21 +44,24 @@ const categoryIsSelectable = async (categoryId: string | null, existingCategoryI
   return Boolean(category?.active || (existingCategoryId && category?.id === existingCategoryId));
 };
 
-const redirectToRegister = (accountId: string) => `/accounts/${accountId}/register`;
-const queryFlag = (value: unknown, defaultValue: boolean) => {
-  const lastValue = Array.isArray(value) ? value[value.length - 1] : value;
-  if (lastValue === "true") return true;
-  if (lastValue === "false") return false;
-  return defaultValue;
+const resolvePayeeId = async (body: Record<string, unknown>, existingPayeeId?: string | null) => {
+  const payeeId = typeof body.payeeId === "string" && body.payeeId ? body.payeeId : null;
+  if (payeeId) return payeeId;
+
+  const newPayeeName = typeof body.newPayeeName === "string" ? body.newPayeeName.trim() : "";
+  if (!newPayeeName) return existingPayeeId ?? null;
+
+  const [existing] = await db.select().from(payees).where(eq(payees.name, newPayeeName)).limit(1);
+  if (existing) return existing.id;
+
+  const [created] = await db.insert(payees).values({ name: newPayeeName }).returning({ id: payees.id });
+  return created?.id ?? null;
 };
 
-export const showAccountRegister = async (req: Request, res: Response) => {
-  await processDueRecurringTransactions(req.params.accountId);
+const redirectToRegister = (accountId: string) => `/accounts/${accountId}/register`;
 
-  const register = await getAccountRegister(req.params.accountId, {
-    showFuture: queryFlag(req.query.showFuture, true),
-    showVoid: queryFlag(req.query.showVoid, false)
-  });
+export const showAccountRegister = async (req: Request, res: Response) => {
+  const register = await getAccountRegister(req.params.accountId, selectedView(req.query.view));
 
   if (!register) {
     req.flash("error", "Account not found.");
@@ -77,7 +77,7 @@ export const showAccountRegister = async (req: Request, res: Response) => {
 };
 
 export const newAccountRegisterTransaction = async (req: Request, res: Response) => {
-  const account = await accountExists(req.params.accountId);
+  const account = await Accounts.getAccount(req.params.accountId);
   if (!account) {
     req.flash("error", "Account not found.");
     res.redirect("/accounts");
@@ -85,41 +85,38 @@ export const newAccountRegisterTransaction = async (req: Request, res: Response)
   }
 
   res.render("layout", {
-    title: `New ${account.name} Transaction`,
+    title: `New ${account.data.name} Transaction`,
     view: "accounts/register-form",
-    account,
+    account: account.data,
     transaction: {
       date: today(),
       accountId: account.id,
-      status: "entered",
-      amountType: "fixed",
-      paymentMethod: "manual"
+      status: "entered"
     },
     ...(await getFormData())
   });
 };
 
 export const createAccountRegisterTransaction = async (req: Request, res: Response) => {
-  const account = await accountExists(req.params.accountId);
+  const account = await Accounts.getAccount(req.params.accountId);
   if (!account) {
     req.flash("error", "Account not found.");
     res.redirect("/accounts");
     return;
   }
 
-  const parsed = transactionSchema.safeParse({ ...req.body, accountId: account.id });
-  if (!parsed.success || !formTransactionStatuses.includes(parsed.data.status as (typeof formTransactionStatuses)[number]) || !(await categoryIsSelectable(parsed.data.categoryId))) {
+  const payeeId = await resolvePayeeId(req.body);
+  const parsed = transactionSchema.safeParse({ ...req.body, accountId: account.id, payeeId });
+  if (!parsed.success || parsed.data.status === "void" || !(await categoryIsSelectable(parsed.data.categoryId))) {
     req.flash(
       "error",
-      parsed.success
-        ? "Status must be entered, pending, cleared, or recurring; category must be active for new transactions."
-        : firstValidationMessage(parsed.error)
+      parsed.success ? "Status must be entered, pending, or cleared; category must be active for new transactions." : firstValidationMessage(parsed.error)
     );
     res.status(422).render("layout", {
-      title: `New ${account.name} Transaction`,
+      title: `New ${account.data.name} Transaction`,
       view: "accounts/register-form",
-      account,
-      transaction: { ...req.body, accountId: account.id },
+      account: account.data,
+      transaction: { ...req.body, accountId: account.id, payeeId },
       ...(await getFormData())
     });
     return;
@@ -128,21 +125,12 @@ export const createAccountRegisterTransaction = async (req: Request, res: Respon
   const data = parsed.data;
   await db.insert(transactions).values({
     date: data.date,
-    description: data.description,
-    amount: data.amount.toFixed(2),
+    amount: toMoney(data.amount),
     accountId: account.id,
+    payeeId: data.payeeId,
+    description: data.description,
     categoryId: data.categoryId,
-    transactionType: data.transactionType,
     status: data.status,
-    amountType: data.amountType,
-    paymentMethod: data.paymentMethod,
-    recurringGroupId: data.recurringGroupId,
-    frequency: data.frequency,
-    recurringEndDate: data.recurringEndDate,
-    dayOfMonth: data.dayOfMonth,
-    secondDayOfMonth: data.secondDayOfMonth,
-    source: data.source,
-    sourceRowHash: data.sourceRowHash,
     notes: data.notes
   });
 
@@ -151,7 +139,7 @@ export const createAccountRegisterTransaction = async (req: Request, res: Respon
 };
 
 export const editAccountRegisterTransaction = async (req: Request, res: Response) => {
-  const account = await accountExists(req.params.accountId);
+  const account = await Accounts.getAccount(req.params.accountId);
   const transaction = account ? await findRegisterTransaction(account.id, req.params.transactionId) : null;
   if (!account || !transaction) {
     req.flash("error", !account ? "Account not found." : "Register transaction not found.");
@@ -159,23 +147,23 @@ export const editAccountRegisterTransaction = async (req: Request, res: Response
     return;
   }
 
-  if (!editableRegisterStatuses.includes(transaction.status as (typeof editableRegisterStatuses)[number])) {
-    req.flash("error", "Statement and void transactions are locked and cannot be edited.");
+  if (!editableRegisterStatuses.includes(transaction.status as (typeof editableRegisterStatuses)[number]) || transaction.statementId) {
+    req.flash("error", "Reconciled and void transactions are locked and cannot be edited.");
     res.redirect(redirectToRegister(account.id));
     return;
   }
 
   res.render("layout", {
-    title: `Edit ${account.name} Transaction`,
+    title: `Edit ${account.data.name} Transaction`,
     view: "accounts/register-form",
-    account,
+    account: account.data,
     transaction,
-    ...(await getFormData(transaction.categoryId))
+    ...(await getFormData(transaction.categoryId, transaction.payeeId))
   });
 };
 
 export const updateAccountRegisterTransaction = async (req: Request, res: Response) => {
-  const account = await accountExists(req.params.accountId);
+  const account = await Accounts.getAccount(req.params.accountId);
   const existing = account ? await findRegisterTransaction(account.id, req.params.transactionId) : null;
   if (!account || !existing) {
     req.flash("error", !account ? "Account not found." : "Register transaction not found.");
@@ -183,63 +171,50 @@ export const updateAccountRegisterTransaction = async (req: Request, res: Respon
     return;
   }
 
-  if (!editableRegisterStatuses.includes(existing.status as (typeof editableRegisterStatuses)[number])) {
-    req.flash("error", "Statement and void transactions are locked and cannot be edited.");
+  if (!editableRegisterStatuses.includes(existing.status as (typeof editableRegisterStatuses)[number]) || existing.statementId) {
+    req.flash("error", "Reconciled and void transactions are locked and cannot be edited.");
     res.redirect(redirectToRegister(account.id));
     return;
   }
 
-  const parsed = transactionSchema.safeParse({ ...req.body, accountId: account.id });
-  if (!parsed.success || !formTransactionStatuses.includes(parsed.data.status as (typeof formTransactionStatuses)[number]) || !(await categoryIsSelectable(parsed.data.categoryId, existing.categoryId))) {
+  const payeeId = await resolvePayeeId(req.body, existing.payeeId);
+  const parsed = transactionSchema.safeParse({ ...req.body, accountId: account.id, payeeId });
+  if (!parsed.success || parsed.data.status === "void" || !(await categoryIsSelectable(parsed.data.categoryId, existing.categoryId))) {
     req.flash(
       "error",
-      parsed.success
-        ? "Status must be entered, pending, cleared, or recurring; category must be active unless it is already assigned to this transaction."
-        : firstValidationMessage(parsed.error)
+      parsed.success ? "Status must be entered, pending, or cleared; category must be active unless already assigned." : firstValidationMessage(parsed.error)
     );
     res.status(422).render("layout", {
-      title: `Edit ${account.name} Transaction`,
+      title: `Edit ${account.data.name} Transaction`,
       view: "accounts/register-form",
-      account,
-      transaction: { ...req.body, id: existing.id, accountId: account.id },
-      ...(await getFormData(existing.categoryId))
+      account: account.data,
+      transaction: { ...req.body, id: existing.id, accountId: account.id, payeeId },
+      ...(await getFormData(existing.categoryId, existing.payeeId))
     });
     return;
   }
 
   const data = parsed.data;
-  const updateValues = {
-    date: data.date,
-    description: data.description,
-    amount: data.amount.toFixed(2),
-    categoryId: data.categoryId,
-    transactionType: data.transactionType,
-    status: data.status,
-    amountType: data.amountType,
-    paymentMethod: data.paymentMethod,
-    recurringGroupId: data.recurringGroupId,
-    frequency: data.frequency,
-    recurringEndDate: data.recurringEndDate,
-    dayOfMonth: data.dayOfMonth,
-    secondDayOfMonth: data.secondDayOfMonth,
-    source: data.source,
-    sourceRowHash: data.sourceRowHash,
-    notes: data.notes
-  };
-
-  const editScope = req.body.recurringEditScope === "future" ? "future" : "this";
-  if (existing.recurringGroupId) {
-    await updateRecurringTransactionWithLifecycle(existing, updateValues, editScope);
-  } else {
-    await db.update(transactions).set({ ...updateValues, updatedAt: new Date() }).where(eq(transactions.id, existing.id));
-  }
+  await db
+    .update(transactions)
+    .set({
+      date: data.date,
+      amount: toMoney(data.amount),
+      payeeId: data.payeeId,
+      description: data.description,
+      categoryId: data.categoryId,
+      status: data.status,
+      notes: data.notes,
+      updatedAt: new Date()
+    })
+    .where(eq(transactions.id, existing.id));
 
   req.flash("success", "Register transaction updated.");
   res.redirect(redirectToRegister(account.id));
 };
 
 export const voidAccountRegisterTransaction = async (req: Request, res: Response) => {
-  const account = await accountExists(req.params.accountId);
+  const account = await Accounts.getAccount(req.params.accountId);
   const transaction = account ? await findRegisterTransaction(account.id, req.params.transactionId) : null;
   if (!account || !transaction) {
     req.flash("error", !account ? "Account not found." : "Register transaction not found.");
@@ -247,17 +222,13 @@ export const voidAccountRegisterTransaction = async (req: Request, res: Response
     return;
   }
 
-  if (!voidableRegisterStatuses.includes(transaction.status as (typeof voidableRegisterStatuses)[number])) {
-    req.flash("error", "Statement transactions cannot be voided.");
+  if (!voidableRegisterStatuses.includes(transaction.status as (typeof voidableRegisterStatuses)[number]) || transaction.statementId) {
+    req.flash("error", "Reconciled transactions cannot be voided.");
     res.redirect(redirectToRegister(account.id));
     return;
   }
 
-  if (transaction.recurringGroupId) {
-    await voidRecurringTransactionWithLifecycle(transaction);
-  } else {
-    await db.update(transactions).set({ status: "void", updatedAt: new Date() }).where(eq(transactions.id, transaction.id));
-  }
+  await db.update(transactions).set({ status: "void", updatedAt: new Date() }).where(eq(transactions.id, transaction.id));
   req.flash("success", "Register transaction voided.");
   res.redirect(redirectToRegister(account.id));
 };

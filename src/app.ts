@@ -13,7 +13,6 @@ import { accountsRoutes } from "./routes/accounts.routes.js";
 import { authRoutes } from "./routes/auth.routes.js";
 import { categoriesRoutes } from "./routes/categories.routes.js";
 import { dashboardRoutes } from "./routes/dashboard.routes.js";
-import { projectionsRoutes } from "./routes/projections.routes.js";
 import { settingsRoutes } from "./routes/settings.routes.js";
 import { transactionsRoutes } from "./routes/transactions.routes.js";
 
@@ -66,7 +65,6 @@ app.use("/", dashboardRoutes);
 app.use("/accounts", accountsRoutes);
 app.use("/categories", categoriesRoutes);
 app.use("/transactions", transactionsRoutes);
-app.use("/projections", projectionsRoutes);
 app.use("/settings", settingsRoutes);
 
 app.use(notFoundHandler);

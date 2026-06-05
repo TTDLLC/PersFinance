@@ -1,32 +1,27 @@
 <section class="page-header">
   <h1>Dashboard</h1>
-  <p>Working balances from active accounts, snapshots, and register activity.</p>
 </section>
 
-<section class="metric-grid">
-  <article class="metric-card"><span>Working Balance</span><strong><%= money(metrics.totalWorkingBalance) %></strong></article>
-  <article class="metric-card"><span>Snapshot Balance</span><strong><%= money(metrics.totalSnapshotBalance) %></strong></article>
-  <article class="metric-card"><span>Post-Snapshot Activity</span><strong><%= money(metrics.totalPostSnapshotActivity) %></strong></article>
-  <article class="metric-card"><span>Active Accounts</span><strong><%= metrics.accountCount %></strong></article>
-</section>
-
-<section class="placeholder-grid">
-  <div class="panel">
-    <h2>Register Balances</h2>
-    <table class="compact-table">
-      <thead><tr><th>Account</th><th>Snapshot</th><th>Activity</th><th>Working</th></tr></thead>
-      <tbody>
-        <% if (!workingBalances.length) { %>
-          <tr><td class="empty-state" colspan="4">No register balances yet.</td></tr>
-        <% } %>
-        <% workingBalances.forEach((balance) => { %>
-          <tr><td><%= balance.accountName %></td><td><%= balance.latestSnapshotDate || "None" %></td><td class="<%= signedClass(balance.postSnapshotActivityTotal) %>"><%= money(balance.postSnapshotActivityTotal) %></td><td><%= money(balance.workingBalance) %></td></tr>
-        <% }) %>
-      </tbody>
-    </table>
-  </div>
-  <div class="panel">
-    <h2>Planning</h2>
-    <p>Use Projections for upcoming register activity, and reconcile statements to keep snapshot anchors current.</p>
-  </div>
-</section>
+<table>
+  <thead>
+    <tr>
+      <th>Account</th>
+      <th>Type</th>
+      <th>Current Balance</th>
+      <th>Reconciliation</th>
+    </tr>
+  </thead>
+  <tbody>
+    <% if (!accounts.length) { %>
+      <tr><td class="empty-state" colspan="4">No accounts yet.</td></tr>
+    <% } %>
+    <% accounts.forEach((account) => { %>
+      <tr>
+        <td><a href="/accounts/<%= account.id %>/register"><%= account.name %></a></td>
+        <td><%= label(account.type) %></td>
+        <td class="<%= signedClass(account.currentBalance) %>"><%= money(account.currentBalance) %></td>
+        <td><%= account.lastReconciledDate || "Not reconciled yet" %></td>
+      </tr>
+    <% }) %>
+  </tbody>
+</table>

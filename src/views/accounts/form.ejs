@@ -3,19 +3,28 @@
   <label>Name<input name="name" value="<%= account.name || "" %>" required></label>
   <label>Type<select name="type"><% accountTypes.forEach((type) => { %><option value="<%= type %>" <%= account.type === type ? "selected" : "" %>><%= label(type) %></option><% }) %></select></label>
   <label>Starting Balance
-    <% if (balanceLocked) { %><input type="hidden" name="startingBalance" value="<%= account.startingBalance || "0.00" %>"><% } %>
-    <input type="number" step="0.01" name="<%= balanceLocked ? "" : "startingBalance" %>" value="<%= account.startingBalance || "0.00" %>" <%= balanceLocked ? "disabled" : "" %>>
+    <% if (!startingInformationState.editable) { %><input type="hidden" name="startingInformationBalance" value="<%= account.startingInformationBalance || "0.00" %>"><% } %>
+    <input type="number" step="0.01" name="<%= startingInformationState.editable ? "startingInformationBalance" : "" %>" value="<%= account.startingInformationBalance || "0.00" %>" <%= startingInformationState.editable ? "" : "disabled" %>>
   </label>
-  <label>Current Balance
-    <% if (balanceLocked) { %><input type="hidden" name="currentBalance" value="<%= account.currentBalance || account.startingBalance || "0.00" %>"><% } %>
-    <input type="number" step="0.01" name="<%= balanceLocked ? "" : "currentBalance" %>" value="<%= account.currentBalance || account.startingBalance || "0.00" %>" <%= balanceLocked ? "disabled" : "" %>>
+  <label>Starting Date
+    <% if (!startingInformationState.editable) { %><input type="hidden" name="startingInformationDate" value="<%= account.startingInformationDate || "" %>"><% } %>
+    <input type="date" name="<%= startingInformationState.editable ? "startingInformationDate" : "" %>" value="<%= account.startingInformationDate || "" %>" <%= startingInformationState.editable ? "" : "disabled" %> required>
+  </label>
+  <label class="full">Starting Notes
+    <% if (!startingInformationState.editable) { %><input type="hidden" name="startingInformationNotes" value="<%= account.startingInformationNotes || "" %>"><% } %>
+    <textarea name="<%= startingInformationState.editable ? "startingInformationNotes" : "" %>" <%= startingInformationState.editable ? "" : "disabled" %>><%= account.startingInformationNotes || "" %></textarea>
   </label>
   <label>Display Order<input type="number" name="displayOrder" value="<%= account.displayOrder || 0 %>"></label>
-  <% if (balanceLocked) { %>
+  <% if (startingInformationState.warning) { %>
     <div class="panel full">
-      <h2>Balances Locked</h2>
-      <p>Balances are locked because this account has <%= activityCounts.transactionCount %> transaction(s) or <%= activityCounts.snapshotCount %> snapshot(s).</p>
-      <p class="muted">Use register transactions or statement reconciliation to change the trusted balance.</p>
+      <h2>Starting Information Warning</h2>
+      <p>This account has activity but no reconciled statement yet. Changing Starting Information will also change the statement-chain balance anchor.</p>
+    </div>
+  <% } %>
+  <% if (!startingInformationState.editable) { %>
+    <div class="panel full">
+      <h2>Starting Information Locked</h2>
+      <p>Starting Information is locked because this account has a reconciled statement.</p>
     </div>
   <% } %>
   <label class="full">Notes<textarea name="notes"><%= account.notes || "" %></textarea></label>

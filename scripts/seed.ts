@@ -2,63 +2,44 @@ import bcrypt from "bcryptjs";
 import { eq } from "drizzle-orm";
 import { env } from "../src/config/env.js";
 import { db, pool } from "../src/db/index.js";
-import {
-  accountBalanceSnapshots,
-  accounts,
-  categories,
-  users
-} from "../src/db/schema.js";
+import { accounts, categories, payees, users } from "../src/db/schema.js";
 
 const defaultCategories = [
   ["Housing", "expense"],
   ["Utilities", "expense"],
   ["Subscriptions", "expense"],
-  ["Travel", "expense"],
   ["Food", "expense"],
   ["Debt Payment", "debt"],
   ["Income", "income"],
-  ["Transfers", "transfer"],
   ["Medical", "expense"],
   ["Auto", "expense"],
   ["Entertainment", "expense"],
   ["Miscellaneous", "other"]
 ] as const;
 
+const defaultPayees = [
+  "Employer",
+  "Grocery Store",
+  "Mortgage Company",
+  "Utility Company",
+  "Credit Card Issuer"
+] as const;
+
 const devSeedEnabled = process.argv.includes("--dev") || process.env.SEED_DEMO_DATA === "true";
-
-const ensureInitialStatementSnapshots = async () => {
-  const seededAccounts = await db.select().from(accounts);
-  const snapshotDate = new Date().toISOString().slice(0, 10);
-
-  for (const account of seededAccounts) {
-    const [existingSnapshot] = await db
-      .select()
-      .from(accountBalanceSnapshots)
-      .where(eq(accountBalanceSnapshots.accountId, account.id))
-      .limit(1);
-
-    if (!existingSnapshot) {
-      await db.insert(accountBalanceSnapshots).values({
-        accountId: account.id,
-        snapshotDate,
-        balance: account.currentBalance,
-        source: "seed",
-        notes: "Initial statement snapshot from seeded current balance."
-      });
-    }
-  }
-
-  console.log("Initial statement snapshots ensured.");
-};
+const today = () => new Date().toISOString().slice(0, 10);
 
 const ensureDevSeedData = async () => {
+  const startDate = today();
+
   const [checking] = await db.select().from(accounts).where(eq(accounts.name, "Main Checking")).limit(1);
   if (!checking) {
     await db.insert(accounts).values({
       name: "Main Checking",
       type: "checking",
-      startingBalance: "4250.00",
-      currentBalance: "4250.00",
+      startingInformationBalance: "4250.00",
+      startingInformationDate: startDate,
+      startingInformationNotes: "Seeded starting information.",
+      statementChainBalance: "4250.00",
       displayOrder: 1
     });
   }
@@ -68,8 +49,10 @@ const ensureDevSeedData = async () => {
     await db.insert(accounts).values({
       name: "Emergency Savings",
       type: "savings",
-      startingBalance: "12000.00",
-      currentBalance: "12000.00",
+      startingInformationBalance: "12000.00",
+      startingInformationDate: startDate,
+      startingInformationNotes: "Seeded starting information.",
+      statementChainBalance: "12000.00",
       displayOrder: 2
     });
   }
@@ -104,11 +87,17 @@ const main = async () => {
   }
   console.log("Default categories ensured.");
 
+  for (const name of defaultPayees) {
+    const [existingPayee] = await db.select().from(payees).where(eq(payees.name, name)).limit(1);
+    if (!existingPayee) {
+      await db.insert(payees).values({ name });
+    }
+  }
+  console.log("Default payees ensured.");
+
   if (devSeedEnabled) {
     await ensureDevSeedData();
   }
-
-  await ensureInitialStatementSnapshots();
 };
 
 main()

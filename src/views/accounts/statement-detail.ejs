@@ -1,7 +1,7 @@
 <section class="page-header row">
   <div>
     <h1><%= account.name %> Statement</h1>
-    <p>Statement <%= statement.statementDate %> reconciled on <%= statement.reconciledAt.toISOString().slice(0, 10) %>.</p>
+    <p>Statement <%= statement.statementDate %> with previous statement ID <%= statement.previousStatementId %>.</p>
   </div>
   <div class="form-actions">
     <a class="button secondary-button" href="/accounts/<%= account.id %>/statements">Statements</a>
@@ -11,8 +11,8 @@
 
 <section class="metric-grid">
   <div class="metric-card">
-    <span>Statement Date</span>
-    <strong><%= statement.statementDate %></strong>
+    <span>Starting Balance</span>
+    <strong><%= accountingMoney(statement.startingBalance) %></strong>
   </div>
   <div class="metric-card">
     <span>Ending Balance</span>
@@ -28,6 +28,7 @@
   <thead>
     <tr>
       <th>Date</th>
+      <th>Payee</th>
       <th>Description</th>
       <th>Amount</th>
       <th>Status</th>
@@ -35,12 +36,13 @@
   </thead>
   <tbody>
     <% if (!transactions.length) { %>
-      <tr><td class="empty-state" colspan="4">No transactions are attached to this statement.</td></tr>
+      <tr><td class="empty-state" colspan="5">No transactions are attached to this statement.</td></tr>
     <% } %>
     <% transactions.forEach((transaction) => { %>
       <tr>
         <td><%= transaction.date %></td>
-        <td><%= transaction.description %></td>
+        <td><%= transaction.payeeName %></td>
+        <td><%= transaction.description || "" %></td>
         <td class="<%= signedClass(transaction.amount) %>"><%= accountingMoney(transaction.amount) %></td>
         <td><span class="status"><%= label(transaction.status) %></span></td>
       </tr>

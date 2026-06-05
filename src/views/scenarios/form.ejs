@@ -1,7 +1,0 @@
-<section class="page-header"><h1><%= scenario.id ? "Edit Scenario" : "New Scenario" %></h1></section>
-<form class="form grid-form">
-  <label>Name<input name="name" value="<%= scenario.name || "" %>" required></label>
-  <label class="full">Description<textarea name="description"><%= scenario.description || "" %></textarea></label>
-  <% if (scenario.id) { %><label class="checkbox"><input type="checkbox" name="active" <%= scenario.active !== false ? "checked" : "" %>> Active</label><% } %>
-  <div class="form-actions full"><button type="button" disabled>Deferred to 1.1</button></div>
-</form>

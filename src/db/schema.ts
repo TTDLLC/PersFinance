@@ -6,6 +6,7 @@ import {
   numeric,
   pgEnum,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   uniqueIndex,
@@ -29,54 +30,14 @@ export const accountTypeEnum = pgEnum("account_type", [
 export const categoryTypeEnum = pgEnum("category_type", [
   "income",
   "expense",
-  "transfer",
   "debt",
   "other"
-]);
-
-export const amountTypeEnum = pgEnum("amount_type", ["fixed", "estimate"]);
-
-export const scheduleTypeEnum = pgEnum("schedule_type", [
-  "weekly",
-  "biweekly",
-  "semimonthly",
-  "monthly",
-  "quarterly",
-  "yearly",
-  "custom"
-]);
-
-export const paymentMethodEnum = pgEnum("payment_method", [
-  "auto_payment",
-  "bill_pay",
-  "online_payment",
-  "swiped",
-  "check",
-  "cash",
-  "manual",
-  "other"
-]);
-
-export const importStatusEnum = pgEnum("import_status", [
-  "pending",
-  "processed",
-  "failed",
-  "archived"
-]);
-
-export const actualTransactionStatusEnum = pgEnum("actual_transaction_status", [
-  "pending",
-  "cleared",
-  "reconciled",
-  "ignored"
 ]);
 
 export const transactionStatusEnum = pgEnum("transaction_status", [
   "entered",
   "pending",
   "cleared",
-  "statement",
-  "recurring",
   "void"
 ]);
 
@@ -99,57 +60,14 @@ export const accounts = pgTable("accounts", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),
   type: accountTypeEnum("type").notNull(),
-  startingBalance: numeric("starting_balance", { precision: 12, scale: 2 }).notNull().default("0"),
-  currentBalance: numeric("current_balance", { precision: 12, scale: 2 }).notNull().default("0"),
+  startingInformationBalance: numeric("starting_information_balance", { precision: 12, scale: 2 }).notNull().default("0"),
+  startingInformationDate: date("starting_information_date").notNull(),
+  startingInformationNotes: text("starting_information_notes"),
+  statementChainBalance: numeric("statement_chain_balance", { precision: 12, scale: 2 }).notNull().default("0"),
+  lastReconciledDate: date("last_reconciled_date"),
+  lastReconciledStatementId: uuid("last_reconciled_statement_id"),
   active: boolean("active").notNull().default(true),
   displayOrder: integer("display_order").notNull().default(0),
-  notes: text("notes"),
-  ...timestamps
-});
-
-export const categories = pgTable("categories", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  name: text("name").notNull(),
-  type: categoryTypeEnum("type").notNull(),
-  displayOrder: integer("display_order").notNull().default(0),
-  active: boolean("active").notNull().default(true),
-  ...timestamps
-});
-
-export const scenarios = pgTable("scenarios", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  name: text("name").notNull(),
-  description: text("description"),
-  isDefault: boolean("is_default").notNull().default(false),
-  active: boolean("active").notNull().default(true),
-  ...timestamps
-});
-
-export const importBatches = pgTable("import_batches", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  sourceName: text("source_name").notNull(),
-  accountId: uuid("account_id").references(() => accounts.id, { onDelete: "set null" }),
-  fileName: text("file_name"),
-  importedAt: timestamp("imported_at", { withTimezone: true }).notNull().defaultNow(),
-  rowCount: integer("row_count").notNull().default(0),
-  status: importStatusEnum("status").notNull().default("pending"),
-  notes: text("notes"),
-  ...timestamps
-});
-
-export const actualTransactions = pgTable("actual_transactions", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  accountId: uuid("account_id").references(() => accounts.id, { onDelete: "set null" }),
-  date: date("date").notNull(),
-  description: text("description").notNull(),
-  amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
-  balanceAfter: numeric("balance_after", { precision: 12, scale: 2 }),
-  categoryId: uuid("category_id").references(() => categories.id, { onDelete: "set null" }),
-  transactionType: text("transaction_type"),
-  status: actualTransactionStatusEnum("status").notNull().default("cleared"),
-  source: text("source"),
-  sourceRowHash: text("source_row_hash"),
-  importBatchId: uuid("import_batch_id").references(() => importBatches.id, { onDelete: "set null" }),
   notes: text("notes"),
   ...timestamps
 });
@@ -160,47 +78,88 @@ export const accountStatements = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
     statementDate: date("statement_date").notNull(),
+    // Convention: "initial" for the first real statement, UUID string for later statements.
+    previousStatementId: text("previous_statement_id").notNull(),
+    startingBalance: numeric("starting_balance", { precision: 12, scale: 2 }).notNull(),
     endingBalance: numeric("ending_balance", { precision: 12, scale: 2 }).notNull(),
-    reconciledAt: timestamp("reconciled_at", { withTimezone: true }).notNull().defaultNow(),
+    reconciledBalance: numeric("reconciled_balance", { precision: 12, scale: 2 }).notNull(),
+    reconciled: boolean("reconciled").notNull().default(false),
+    notes: text("notes"),
     ...timestamps
   },
   (table) => ({
-    accountDateIdx: index("account_statements_account_date_idx").on(table.accountId, table.statementDate)
+    accountDateIdx: index("account_statements_account_date_idx").on(table.accountId, table.statementDate),
+    accountReconciledIdx: index("account_statements_account_reconciled_idx").on(table.accountId, table.reconciled)
   })
 );
 
-export const transactions = pgTable("transactions", {
+export const payees = pgTable(
+  "payees",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: text("name").notNull(),
+    notes: text("notes"),
+    active: boolean("active").notNull().default(true),
+    ...timestamps
+  },
+  (table) => ({
+    activeNameIdx: uniqueIndex("payees_active_name_unique").on(table.name, table.active)
+  })
+);
+
+export const categories = pgTable("categories", {
   id: uuid("id").primaryKey().defaultRandom(),
-  accountId: uuid("account_id").references(() => accounts.id, { onDelete: "set null" }),
-  categoryId: uuid("category_id").references(() => categories.id, { onDelete: "set null" }),
-  date: date("date").notNull(),
-  description: text("description").notNull(),
-  amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
-  statementId: uuid("statement_id").references(() => accountStatements.id, { onDelete: "set null" }),
-  transactionType: text("transaction_type"),
-  status: transactionStatusEnum("status").notNull().default("entered"),
-  amountType: amountTypeEnum("amount_type").notNull().default("fixed"),
-  paymentMethod: paymentMethodEnum("payment_method").notNull().default("manual"),
-  recurringGroupId: uuid("recurring_group_id"),
-  frequency: scheduleTypeEnum("frequency"),
-  recurringEndDate: date("recurring_end_date"),
-  dayOfMonth: integer("day_of_month"),
-  secondDayOfMonth: integer("second_day_of_month"),
-  source: text("source"),
-  sourceRowHash: text("source_row_hash"),
-  importBatchId: uuid("import_batch_id").references(() => importBatches.id, { onDelete: "set null" }),
-  notes: text("notes"),
+  name: text("name").notNull(),
+  type: categoryTypeEnum("type").notNull(),
+  displayOrder: integer("display_order").notNull().default(0),
+  active: boolean("active").notNull().default(true),
   ...timestamps
 });
 
-export const accountBalanceSnapshots = pgTable("account_balance_snapshots", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  accountId: uuid("account_id").references(() => accounts.id, { onDelete: "cascade" }),
-  snapshotDate: date("snapshot_date").notNull(),
-  balance: numeric("balance", { precision: 12, scale: 2 }).notNull(),
-  source: text("source"),
-  notes: text("notes"),
-  ...timestamps
-});
+export const tags = pgTable(
+  "tags",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: text("name").notNull(),
+    active: boolean("active").notNull().default(true),
+    ...timestamps
+  },
+  (table) => ({
+    activeNameIdx: uniqueIndex("tags_active_name_unique").on(table.name, table.active)
+  })
+);
+
+export const transactions = pgTable(
+  "transactions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+    date: date("date").notNull(),
+    amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
+    status: transactionStatusEnum("status").notNull().default("entered"),
+    statementId: uuid("statement_id").references(() => accountStatements.id, { onDelete: "set null" }),
+    payeeId: uuid("payee_id").notNull().references(() => payees.id),
+    description: text("description"),
+    categoryId: uuid("category_id").references(() => categories.id, { onDelete: "set null" }),
+    notes: text("notes"),
+    ...timestamps
+  },
+  (table) => ({
+    accountActiveIdx: index("transactions_account_active_idx").on(table.accountId, table.statementId, table.status),
+    accountDateIdx: index("transactions_account_date_idx").on(table.accountId, table.date)
+  })
+);
+
+export const transactionTags = pgTable(
+  "transaction_tags",
+  {
+    transactionId: uuid("transaction_id").notNull().references(() => transactions.id, { onDelete: "cascade" }),
+    tagId: uuid("tag_id").notNull().references(() => tags.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.transactionId, table.tagId] })
+  })
+);
 
 export type User = typeof users.$inferSelect;

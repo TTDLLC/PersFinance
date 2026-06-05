@@ -1,16 +1,6 @@
 <section class="page-header row">
-  <div><h1>Register</h1><p>Account activity and working balances from statement snapshots.</p></div>
+  <div><h1>Register</h1><p>Actual account transactions.</p></div>
   <a class="button" href="/transactions/new">New Transaction</a>
-</section>
-
-<section class="metric-grid">
-  <% balances.forEach((balance) => { %>
-    <article class="metric-card">
-      <span><%= balance.accountName %></span>
-      <strong><%= money(balance.workingBalance) %></strong>
-      <p>Snapshot <%= balance.latestSnapshotDate || "none" %> at <%= money(balance.latestSnapshotBalance) %>; activity <%= money(balance.postSnapshotActivityTotal) %></p>
-    </article>
-  <% }) %>
 </section>
 
 <form class="filter-bar" method="get" action="/transactions">
@@ -22,12 +12,18 @@
       <% }) %>
     </select>
   </label>
-  <label class="checkbox"><input type="checkbox" name="showVoid" <%= filters.showVoid ? "checked" : "" %>> Show void</label>
+  <label>View
+    <select name="view">
+      <option value="active" <%= filters.view === "active" ? "selected" : "" %>>Active</option>
+      <option value="all" <%= filters.view === "all" ? "selected" : "" %>>Show All</option>
+      <option value="void" <%= filters.view === "void" ? "selected" : "" %>>Void</option>
+    </select>
+  </label>
   <button type="submit">Update</button>
 </form>
 
 <table>
-  <thead><tr><th>Date</th><th>Description</th><th>Account</th><th>Category</th><th>Type</th><th>Status</th><th>Amount</th><th></th></tr></thead>
+  <thead><tr><th>Date</th><th>Payee</th><th>Description</th><th>Account</th><th>Category</th><th>Status</th><th>Amount</th><th></th></tr></thead>
   <tbody>
     <% if (!transactions.length) { %>
       <tr><td class="empty-state" colspan="8">No register transactions yet.</td></tr>
@@ -35,12 +31,12 @@
     <% transactions.forEach((item) => { %>
       <tr>
         <td><%= item.date %></td>
-        <td><%= item.description %></td>
+        <td><%= item.payeeName %></td>
+        <td><%= item.description || "" %></td>
         <td><%= item.accountName || "" %></td>
         <td><%= item.categoryName || "" %></td>
-        <td><%= item.transactionType || "" %></td>
-        <td><span class="status"><%= label(item.status) %><%= item.amountType === "estimate" ? " Estimate" : "" %></span></td>
-        <td class="<%= signedClass(item.amount) %>"><%= money(item.amount) %></td>
+        <td><span class="status"><%= label(item.status) %></span></td>
+        <td class="<%= signedClass(item.amount) %>"><%= accountingMoney(item.amount) %></td>
         <td class="actions"><a href="/transactions/<%= item.id %>/edit">Edit</a></td>
       </tr>
     <% }) %>

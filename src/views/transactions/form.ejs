@@ -1,51 +1,19 @@
 <section class="page-header"><h1><%= transaction.id ? "Edit Register Transaction" : "New Register Transaction" %></h1></section>
 <form method="post" action="<%= transaction.id ? `/transactions/${transaction.id}` : "/transactions" %>" class="form grid-form">
   <label>Date<input type="date" name="date" value="<%= transaction.date || "" %>" required></label>
-  <label>Description<input name="description" value="<%= transaction.description || "" %>" required></label>
-  <label>Amount<input type="number" step="0.01" name="amount" value="<%= transaction.amount || "" %>" required></label>
-  <label>Type<input name="transactionType" value="<%= transaction.transactionType || "" %>" placeholder="purchase, income, transfer"></label>
-  <label>Account<select name="accountId"><option value="">None</option><% accounts.forEach((account) => { %><option value="<%= account.id %>" <%= transaction.accountId === account.id ? "selected" : "" %>><%= account.name %></option><% }) %></select></label>
+  <label>Account<select name="accountId" required><option value="">Select account</option><% accounts.forEach((account) => { %><option value="<%= account.id %>" <%= transaction.accountId === account.id ? "selected" : "" %>><%= account.name %></option><% }) %></select></label>
+  <label>Payee
+    <select name="payeeId">
+      <option value="">Select payee</option>
+      <% payees.forEach((payee) => { %><option value="<%= payee.id %>" <%= transaction.payeeId === payee.id ? "selected" : "" %>><%= payee.name %><%= payee.active ? "" : " (Archived)" %></option><% }) %>
+    </select>
+  </label>
+  <label>New Payee<input name="newPayeeName" value="" placeholder="Use if payee is not listed"></label>
   <label>Category<select name="categoryId"><option value="">None</option><% categories.forEach((category) => { %><option value="<%= category.id %>" <%= transaction.categoryId === category.id ? "selected" : "" %>><%= category.name %><%= category.active ? "" : " (Archived)" %></option><% }) %></select></label>
+  <label>Amount<input type="number" step="0.01" name="amount" value="<%= transaction.amount || "" %>" required></label>
   <label>Status<select name="status"><% statuses.forEach((status) => { %><option value="<%= status %>" <%= (transaction.status || "entered") === status ? "selected" : "" %>><%= label(status) %></option><% }) %></select></label>
-  <label>Amount Type<select name="amountType"><% amountTypes.forEach((type) => { %><option value="<%= type %>" <%= (transaction.amountType || "fixed") === type ? "selected" : "" %>><%= label(type) %></option><% }) %></select></label>
-  <label>Payment Method<select name="paymentMethod"><% paymentMethods.forEach((method) => { %><option value="<%= method %>" <%= (transaction.paymentMethod || "manual") === method ? "selected" : "" %>><%= label(method) %></option><% }) %></select></label>
-
-  <details class="full">
-    <summary>Recurring metadata</summary>
-    <div class="details-grid">
-      <label>Recurring Group ID<input name="recurringGroupId" value="<%= transaction.recurringGroupId || "" %>"></label>
-      <label>Frequency<select name="frequency"><option value="">None</option><% scheduleTypes.forEach((type) => { %><option value="<%= type %>" <%= transaction.frequency === type ? "selected" : "" %>><%= label(type) %></option><% }) %></select></label>
-      <label>Recurring End Date<input type="date" name="recurringEndDate" value="<%= transaction.recurringEndDate || "" %>"></label>
-      <label>Day of Month<input type="number" min="1" max="31" name="dayOfMonth" value="<%= transaction.dayOfMonth || "" %>"></label>
-      <label>Second Day<input type="number" min="1" max="31" name="secondDayOfMonth" value="<%= transaction.secondDayOfMonth || "" %>"></label>
-    </div>
-  </details>
-
-  <% if (transaction.id && transaction.recurringGroupId) { %>
-    <fieldset class="full">
-      <legend>Apply recurring edit to</legend>
-      <label><input type="radio" name="recurringEditScope" value="this" checked> This transaction only</label>
-      <label><input type="radio" name="recurringEditScope" value="future"> This and future transactions</label>
-    </fieldset>
-  <% } %>
-
-  <details class="full">
-    <summary>Source metadata</summary>
-    <div class="details-grid">
-      <label>Source<input name="source" value="<%= transaction.source || "" %>"></label>
-      <label>Source Row Hash<input name="sourceRowHash" value="<%= transaction.sourceRowHash || "" %>"></label>
-    </div>
-  </details>
-
+  <label class="full">Description<textarea name="description"><%= transaction.description || "" %></textarea></label>
   <label class="full">Notes<textarea name="notes"><%= transaction.notes || "" %></textarea></label>
-  <div class="panel full status-help">
-    <h2>Status Guide</h2>
-    <p><strong>Entered</strong>: recorded by you and counted in the working balance.</p>
-    <p><strong>Pending</strong>: expected or bank-pending activity, counted in the working balance.</p>
-    <p><strong>Cleared</strong>: posted activity ready for statement reconciliation.</p>
-    <p><strong>Recurring</strong>: future scheduled occurrence; it rolls forward when due.</p>
-    <p><strong>Statement</strong> and <strong>Void</strong> are locked lifecycle states managed by reconciliation and void actions.</p>
-  </div>
   <div class="form-actions full"><button type="submit">Save</button><a href="/transactions">Cancel</a></div>
 </form>
-<% if (transaction.id && transaction.status !== "void") { %><form method="post" action="/transactions/<%= transaction.id %>/void"><button class="danger" type="submit">Void Transaction</button></form><% } %>
+<% if (transaction.id && ["entered", "pending", "cleared"].includes(transaction.status) && !transaction.statementId) { %><form method="post" action="/transactions/<%= transaction.id %>/void"><button class="danger" type="submit">Void Transaction</button></form><% } %>

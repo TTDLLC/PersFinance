@@ -1,7 +1,7 @@
 <section class="page-header row">
   <div>
     <h1><%= account.name %> Statements</h1>
-    <p>Reconciled statement records and their balance snapshots.</p>
+    <p>Reconciled statement records for this account.</p>
   </div>
   <div class="form-actions">
     <a class="button" href="/accounts/<%= account.id %>/reconcile">Reconcile</a>
@@ -13,21 +13,23 @@
   <thead>
     <tr>
       <th>Statement Date</th>
+      <th>Previous Statement ID</th>
+      <th>Starting Balance</th>
       <th>Ending Balance</th>
-      <th>Reconciled Date</th>
-      <th>Transaction Count</th>
+      <th>Transactions</th>
       <th>Detail</th>
     </tr>
   </thead>
   <tbody>
     <% if (!statements.length) { %>
-      <tr><td class="empty-state" colspan="5">No statements have been reconciled for this account.</td></tr>
+      <tr><td class="empty-state" colspan="6">No statements have been reconciled for this account.</td></tr>
     <% } %>
     <% statements.forEach((statement) => { %>
       <tr>
         <td><%= statement.statementDate %></td>
+        <td><%= statement.previousStatementId %></td>
+        <td class="<%= signedClass(statement.startingBalance) %>"><%= accountingMoney(statement.startingBalance) %></td>
         <td class="<%= signedClass(statement.endingBalance) %>"><%= accountingMoney(statement.endingBalance) %></td>
-        <td><%= statement.reconciledAt.toISOString().slice(0, 10) %></td>
         <td><%= statement.transactionCount %></td>
         <td class="actions"><a href="/accounts/<%= account.id %>/statements/<%= statement.id %>">View</a></td>
       </tr>

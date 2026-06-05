@@ -3,7 +3,7 @@ import { env } from "./config/env.js";
 import { pool } from "./db/index.js";
 
 const server = app.listen(env.PORT, () => {
-  console.log(`Finance projection app running at http://localhost:${env.PORT}`);
+  console.log(`PersFinance app running at http://localhost:${env.PORT}`);
 });
 
 const shutdown = async () => {

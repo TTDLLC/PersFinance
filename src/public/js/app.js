@@ -19,14 +19,14 @@ const formatAccountingMoney = (value) => {
 const toCents = (value) => Math.round(Number(value || 0) * 100);
 
 const updateReconciliationForm = (form) => {
-  const snapshotCents = toCents(form.dataset.snapshotBalance);
+  const startingCents = toCents(form.dataset.startingBalance);
   const selectedCents = [...form.querySelectorAll("[data-reconcile-transaction]:checked")].reduce(
     (sum, input) => sum + toCents(input.dataset.amount),
     0
   );
   const endingInput = form.querySelector("[data-ending-balance]");
   const endingCents = toCents(endingInput?.value);
-  const calculatedCents = snapshotCents + selectedCents;
+  const calculatedCents = startingCents + selectedCents;
   const differenceCents = endingCents - calculatedCents;
 
   const endingDisplay = form.querySelector("[data-statement-ending]");
