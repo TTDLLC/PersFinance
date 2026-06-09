@@ -1,5 +1,5 @@
 <section class="page-header row">
-  <div><h1>Categories</h1><p>Labels for register transactions; archived categories remain on historical rows.</p></div>
+  <div><h1>Categories</h1><p>Drag active categories to change their order. Archived categories remain on historical rows.</p></div>
   <a class="button" href="/categories/new">New Category</a>
 </section>
 
@@ -12,18 +12,22 @@
   <button type="submit">Update</button>
 </form>
 
+<div class="sort-status" data-category-sort-status aria-live="polite"></div>
 <table>
-  <thead><tr><th>Name</th><th>Type</th><th>Order</th><th>Usage</th><th>Status</th><th></th></tr></thead>
+  <thead><tr><th class="drag-column"><span class="visually-hidden">Move</span></th><th>Name</th><th>Type</th><th>Status</th><th></th></tr></thead>
   <tbody>
     <% if (!categories.length) { %>
-      <tr><td class="empty-state" colspan="6">No categories match the current filter.</td></tr>
+      <tr><td class="empty-state" colspan="5">No categories match the current filter.</td></tr>
     <% } %>
     <% categories.forEach((category) => { %>
-      <tr class="<%= category.active ? "" : "muted" %>">
+      <tr
+        class="<%= category.active ? "sortable-row" : "muted" %>"
+        data-category-id="<%= category.id %>"
+        draggable="<%= category.active ? "true" : "false" %>"
+      >
+        <td class="drag-handle"><%= category.active ? "::" : "" %></td>
         <td><%= category.name %></td>
         <td><%= label(category.type) %></td>
-        <td><%= category.displayOrder %></td>
-        <td><%= category.usageCount %></td>
         <td><span class="status"><%= category.active ? "Active" : "Archived" %></span></td>
         <td class="actions"><a href="/categories/<%= category.id %>/edit">Edit</a></td>
       </tr>

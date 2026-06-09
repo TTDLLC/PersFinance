@@ -44,20 +44,6 @@ const categoryIsSelectable = async (categoryId: string | null, existingCategoryI
   return Boolean(category?.active || (existingCategoryId && category?.id === existingCategoryId));
 };
 
-const resolvePayeeId = async (body: Record<string, unknown>, existingPayeeId?: string | null) => {
-  const payeeId = typeof body.payeeId === "string" && body.payeeId ? body.payeeId : null;
-  if (payeeId) return payeeId;
-
-  const newPayeeName = typeof body.newPayeeName === "string" ? body.newPayeeName.trim() : "";
-  if (!newPayeeName) return existingPayeeId ?? null;
-
-  const [existing] = await db.select().from(payees).where(eq(payees.name, newPayeeName)).limit(1);
-  if (existing) return existing.id;
-
-  const [created] = await db.insert(payees).values({ name: newPayeeName }).returning({ id: payees.id });
-  return created?.id ?? null;
-};
-
 const redirectToRegister = (accountId: string) => `/accounts/${accountId}/register`;
 
 export const showAccountRegister = async (req: Request, res: Response) => {
@@ -105,8 +91,7 @@ export const createAccountRegisterTransaction = async (req: Request, res: Respon
     return;
   }
 
-  const payeeId = await resolvePayeeId(req.body);
-  const parsed = transactionSchema.safeParse({ ...req.body, accountId: account.id, payeeId });
+  const parsed = transactionSchema.safeParse({ ...req.body, accountId: account.id });
   if (!parsed.success || parsed.data.status === "void" || !(await categoryIsSelectable(parsed.data.categoryId))) {
     req.flash(
       "error",
@@ -116,7 +101,7 @@ export const createAccountRegisterTransaction = async (req: Request, res: Respon
       title: `New ${account.data.name} Transaction`,
       view: "accounts/register-form",
       account: account.data,
-      transaction: { ...req.body, accountId: account.id, payeeId },
+      transaction: { ...req.body, accountId: account.id },
       ...(await getFormData())
     });
     return;
@@ -177,8 +162,7 @@ export const updateAccountRegisterTransaction = async (req: Request, res: Respon
     return;
   }
 
-  const payeeId = await resolvePayeeId(req.body, existing.payeeId);
-  const parsed = transactionSchema.safeParse({ ...req.body, accountId: account.id, payeeId });
+  const parsed = transactionSchema.safeParse({ ...req.body, accountId: account.id });
   if (!parsed.success || parsed.data.status === "void" || !(await categoryIsSelectable(parsed.data.categoryId, existing.categoryId))) {
     req.flash(
       "error",
@@ -188,7 +172,7 @@ export const updateAccountRegisterTransaction = async (req: Request, res: Respon
       title: `Edit ${account.data.name} Transaction`,
       view: "accounts/register-form",
       account: account.data,
-      transaction: { ...req.body, id: existing.id, accountId: account.id, payeeId },
+      transaction: { ...req.body, id: existing.id, accountId: account.id },
       ...(await getFormData(existing.categoryId, existing.payeeId))
     });
     return;

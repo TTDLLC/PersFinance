@@ -32,8 +32,7 @@ export const accountSchema = z.object({
 
 export const categorySchema = z.object({
   name: requiredText("Name"),
-  type: z.enum(categoryTypes),
-  displayOrder: z.coerce.number().int().default(0)
+  type: z.enum(categoryTypes)
 });
 
 export const payeeSchema = z.object({

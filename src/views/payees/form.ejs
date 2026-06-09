@@ -1,0 +1,11 @@
+<section class="page-header"><h1><%= payee.id ? "Edit Payee" : "New Payee" %></h1></section>
+<form method="post" action="<%= payee.id ? `/payees/${payee.id}` : "/payees" %>" class="form grid-form">
+  <label>Name<input name="name" value="<%= payee.name || "" %>" required></label>
+  <label class="full">Notes<textarea name="notes"><%= payee.notes || "" %></textarea></label>
+  <div class="form-actions full"><button type="submit">Save</button><a href="/payees">Cancel</a></div>
+</form>
+<% if (payee.id && payee.active) { %>
+  <form method="post" action="/payees/<%= payee.id %>/archive">
+    <button class="danger" type="submit">Archive Payee</button>
+  </form>
+<% } %>

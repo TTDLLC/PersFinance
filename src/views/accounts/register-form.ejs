@@ -7,7 +7,7 @@
       <% payees.forEach((payee) => { %><option value="<%= payee.id %>" <%= transaction.payeeId === payee.id ? "selected" : "" %>><%= payee.name %><%= payee.active ? "" : " (Archived)" %></option><% }) %>
     </select>
   </label>
-  <label>New Payee<input name="newPayeeName" value="" placeholder="Use if payee is not listed"></label>
+  <div class="field-help">Need another payee? <a href="/payees">Manage payees</a>.</div>
   <label>Category<select name="categoryId"><option value="">None</option><% categories.forEach((category) => { %><option value="<%= category.id %>" <%= transaction.categoryId === category.id ? "selected" : "" %>><%= category.name %><%= category.active ? "" : " (Archived)" %></option><% }) %></select></label>
   <label>Amount<input type="number" step="0.01" name="amount" value="<%= transaction.amount || "" %>" required></label>
   <label>Status<select name="status"><% statuses.forEach((status) => { %><option value="<%= status %>" <%= (transaction.status || "entered") === status ? "selected" : "" %>><%= label(status) %></option><% }) %></select></label>

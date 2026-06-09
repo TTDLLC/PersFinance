@@ -13,7 +13,6 @@
   <thead>
     <tr>
       <th>Statement Date</th>
-      <th>Previous Statement ID</th>
       <th>Starting Balance</th>
       <th>Ending Balance</th>
       <th>Transactions</th>
@@ -22,12 +21,11 @@
   </thead>
   <tbody>
     <% if (!statements.length) { %>
-      <tr><td class="empty-state" colspan="6">No statements have been reconciled for this account.</td></tr>
+      <tr><td class="empty-state" colspan="5">No statements have been reconciled for this account.</td></tr>
     <% } %>
     <% statements.forEach((statement) => { %>
       <tr>
         <td><%= statement.statementDate %></td>
-        <td><%= statement.previousStatementId %></td>
         <td class="<%= signedClass(statement.startingBalance) %>"><%= accountingMoney(statement.startingBalance) %></td>
         <td class="<%= signedClass(statement.endingBalance) %>"><%= accountingMoney(statement.endingBalance) %></td>
         <td><%= statement.transactionCount %></td>

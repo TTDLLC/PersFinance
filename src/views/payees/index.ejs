@@ -1,0 +1,30 @@
+<section class="page-header row">
+  <div><h1>Payees</h1><p>Names available when creating and editing transactions.</p></div>
+  <a class="button" href="/payees/new">New Payee</a>
+</section>
+
+<form class="filter-bar" method="get" action="/payees">
+  <input type="hidden" name="showArchived" value="false">
+  <label class="checkbox">
+    <input type="checkbox" name="showArchived" value="true" <%= showArchived ? "checked" : "" %>>
+    Show archived
+  </label>
+  <button type="submit">Update</button>
+</form>
+
+<table>
+  <thead><tr><th>Name</th><th>Notes</th><th>Status</th><th></th></tr></thead>
+  <tbody>
+    <% if (!payees.length) { %>
+      <tr><td class="empty-state" colspan="4">No payees match the current filter.</td></tr>
+    <% } %>
+    <% payees.forEach((payee) => { %>
+      <tr class="<%= payee.active ? "" : "muted" %>">
+        <td><%= payee.name %></td>
+        <td><%= payee.notes || "" %></td>
+        <td><span class="status"><%= payee.active ? "Active" : "Archived" %></span></td>
+        <td class="actions"><a href="/payees/<%= payee.id %>/edit">Edit</a></td>
+      </tr>
+    <% }) %>
+  </tbody>
+</table>

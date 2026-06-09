@@ -28,7 +28,7 @@ const categoryUsageCount = async (categoryId: string) => {
   return usage?.count ?? 0;
 };
 
-const categoriesWithUsage = async (showArchived: boolean) => {
+const categoryRows = async (showArchived: boolean) => {
   const filters = showArchived ? undefined : eq(categories.active, true);
   return db
     .select({
@@ -36,19 +36,16 @@ const categoriesWithUsage = async (showArchived: boolean) => {
       name: categories.name,
       type: categories.type,
       displayOrder: categories.displayOrder,
-      active: categories.active,
-      usageCount: sql<number>`count(${transactions.id})::int`
+      active: categories.active
     })
     .from(categories)
-    .leftJoin(transactions, eq(transactions.categoryId, categories.id))
     .where(filters)
-    .groupBy(categories.id)
     .orderBy(desc(categories.active), asc(categories.displayOrder), asc(categories.name));
 };
 
 export const listCategories = async (req: Request, res: Response) => {
   const showArchived = queryFlag(req.query.showArchived, false);
-  const rows = await categoriesWithUsage(showArchived);
+  const rows = await categoryRows(showArchived);
   res.render("layout", { title: "Categories", view: "categories/index", categories: rows, showArchived });
 };
 
@@ -65,6 +62,11 @@ export const createCategory = async (req: Request, res: Response) => {
   }
 
   const data = parsed.data;
+  const [lastCategory] = await db
+    .select({ displayOrder: categories.displayOrder })
+    .from(categories)
+    .orderBy(desc(categories.displayOrder))
+    .limit(1);
   if (await activeNameExists(data.name)) {
     req.flash("error", "An active category with that name already exists.");
     res.status(422).render("layout", { title: "New Category", view: "categories/form", category: req.body, categoryTypes, usageCount: 0 });
@@ -74,7 +76,7 @@ export const createCategory = async (req: Request, res: Response) => {
   await db.insert(categories).values({
     name: data.name,
     type: data.type,
-    displayOrder: data.displayOrder
+    displayOrder: (lastCategory?.displayOrder ?? 0) + 1
   });
   req.flash("success", "Category created.");
   res.redirect("/categories");
@@ -129,12 +131,33 @@ export const updateCategory = async (req: Request, res: Response) => {
     .set({
       name: data.name,
       type: data.type,
-      displayOrder: data.displayOrder,
       updatedAt: new Date()
     })
     .where(eq(categories.id, req.params.id));
   req.flash("success", "Category updated.");
   res.redirect("/categories");
+};
+
+export const reorderCategories = async (req: Request, res: Response) => {
+  const categoryIds: string[] = Array.isArray(req.body.categoryIds)
+    ? req.body.categoryIds.map((value: unknown) => String(value))
+    : [];
+  const uniqueIds: string[] = [...new Set(categoryIds)];
+  const activeRows = await db.select({ id: categories.id }).from(categories).where(eq(categories.active, true));
+  const activeIds = new Set(activeRows.map((category) => category.id));
+
+  if (uniqueIds.length !== activeIds.size || uniqueIds.some((id) => !activeIds.has(id))) {
+    res.status(422).json({ error: "Category order is out of date. Refresh and try again." });
+    return;
+  }
+
+  await db.transaction(async (tx) => {
+    for (const [index, id] of uniqueIds.entries()) {
+      await tx.update(categories).set({ displayOrder: index + 1, updatedAt: new Date() }).where(eq(categories.id, id));
+    }
+  });
+
+  res.json({ ok: true });
 };
 
 export const archiveCategory = async (req: Request, res: Response) => {

@@ -3,27 +3,26 @@
     <h1><%= register.account.name %> Register</h1>
     <p>Current Balance <%= money(register.balance.currentBalance) %>; reconciliation <%= register.displayLastReconciledDate || "not reconciled yet" %>.</p>
   </div>
-  <a class="button" href="/accounts/<%= register.account.id %>/register/new">New Transaction</a>
+  <div class="form-actions">
+    <a class="button" href="/accounts/<%= register.account.id %>/register/new">New Transaction</a>
+    <a class="button secondary-button" href="/accounts/<%= register.account.id %>/edit">Account Settings</a>
+    <a class="button secondary-button" href="/accounts/<%= register.account.id %>/statements">Statements</a>
+    <a class="button secondary-button" href="/accounts/<%= register.account.id %>/reconcile">Reconcile</a>
+  </div>
 </section>
 
-<form class="filter-bar" method="get" action="/accounts/<%= register.account.id %>/register">
-  <label>View
-    <select name="view">
-      <option value="active" <%= register.view === "active" ? "selected" : "" %>>Active</option>
-      <option value="all" <%= register.view === "all" ? "selected" : "" %>>Show All</option>
-      <option value="void" <%= register.view === "void" ? "selected" : "" %>>Void</option>
-    </select>
-  </label>
-  <button type="submit">Update</button>
-</form>
-
-<section class="panel status-help">
-  <h2>Status Guide</h2>
-  <p><strong>Entered</strong>, <strong>Pending</strong>, and <strong>Cleared</strong> active transactions affect Current Balance.</p>
-  <p>Reconciled transactions are assigned to statements. Void transactions affect nothing and only appear in the Void view.</p>
-</section>
-
-<table>
+<section class="table-panel">
+  <form class="filter-bar embedded-filter" method="get" action="/accounts/<%= register.account.id %>/register">
+    <label>View
+      <select name="view">
+        <option value="active" <%= register.view === "active" ? "selected" : "" %>>Active</option>
+        <option value="all" <%= register.view === "all" ? "selected" : "" %>>Show All</option>
+        <option value="void" <%= register.view === "void" ? "selected" : "" %>>Void</option>
+      </select>
+    </label>
+    <button type="submit">Update</button>
+  </form>
+  <table>
   <thead>
     <tr>
       <th>Date</th>
@@ -34,12 +33,11 @@
       <th>Status</th>
       <th>Balance After</th>
       <th>Edit</th>
-      <th>Void</th>
     </tr>
   </thead>
   <tbody>
     <% if (!register.rows.length) { %>
-      <tr><td class="empty-state" colspan="9">No transactions in this view.</td></tr>
+      <tr><td class="empty-state" colspan="8">No transactions in this view.</td></tr>
     <% } %>
     <% register.rows.forEach((item) => { %>
       <tr class="<%= item.status === "void" ? "void-row" : "" %>">
@@ -57,16 +55,8 @@
             <span class="muted">Locked</span>
           <% } %>
         </td>
-        <td class="actions">
-          <% if (item.canVoid) { %>
-            <form method="post" action="/accounts/<%= register.account.id %>/register/<%= item.id %>/void">
-              <button class="link-button danger-link" type="submit">Void</button>
-            </form>
-          <% } else { %>
-            <span class="muted">-</span>
-          <% } %>
-        </td>
       </tr>
     <% }) %>
   </tbody>
-</table>
+  </table>
+</section>

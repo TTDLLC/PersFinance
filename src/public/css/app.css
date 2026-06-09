@@ -213,6 +213,22 @@ tr:last-child td {
   margin: 0;
 }
 
+.small-button {
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--accent);
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 650;
+  padding: 5px 8px;
+}
+
+.small-button:hover {
+  border-color: var(--accent);
+  text-decoration: none;
+}
+
 .button,
 button {
   background: var(--accent);
@@ -362,6 +378,11 @@ summary {
   margin-top: 16px;
 }
 
+.page-header .form-actions {
+  justify-content: flex-end;
+  margin-top: 0;
+}
+
 .reconciliation-summary {
   margin-top: 18px;
 }
@@ -381,6 +402,102 @@ summary {
   flex-wrap: wrap;
   margin-bottom: 22px;
   padding: 14px;
+}
+
+.table-panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.table-panel table {
+  border: 0;
+  border-radius: 0;
+}
+
+.embedded-filter {
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  margin: 0;
+}
+
+.field-help {
+  align-self: end;
+  color: var(--muted);
+  font-size: 13px;
+  padding: 10px 0;
+}
+
+.settings-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.settings-card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--text);
+  padding: 18px;
+}
+
+.settings-card:hover {
+  border-color: var(--accent);
+  text-decoration: none;
+}
+
+.settings-card h2 {
+  font-size: 18px;
+  margin: 0 0 6px;
+}
+
+.settings-card p {
+  color: var(--muted);
+  margin: 0;
+}
+
+.drag-column {
+  width: 42px;
+}
+
+.drag-handle {
+  color: var(--muted);
+  cursor: grab;
+  font-weight: 700;
+  letter-spacing: -3px;
+  text-align: center;
+  user-select: none;
+}
+
+.sortable-row.dragging {
+  opacity: 0.45;
+}
+
+.sortable-row.drag-over td {
+  border-top: 2px solid var(--accent);
+}
+
+.sort-status {
+  color: var(--muted);
+  font-size: 13px;
+  min-height: 24px;
+}
+
+.sort-status.error {
+  color: var(--danger);
+}
+
+.visually-hidden {
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  height: 1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
 }
 
 .flash {
@@ -421,5 +538,9 @@ summary {
   table {
     display: block;
     overflow-x: auto;
+  }
+
+  .page-header .form-actions {
+    justify-content: flex-start;
   }
 }

@@ -51,3 +51,68 @@ document.querySelectorAll("[data-reconcile-form]").forEach((form) => {
   form.addEventListener("input", () => updateReconciliationForm(form));
   form.addEventListener("change", () => updateReconciliationForm(form));
 });
+
+const categoryRows = [...document.querySelectorAll("[data-category-id][draggable='true']")];
+const categorySortStatus = document.querySelector("[data-category-sort-status]");
+let draggedCategoryRow = null;
+
+const saveCategoryOrder = async () => {
+  if (!categoryRows.length) return;
+  const categoryIds = [...document.querySelectorAll("[data-category-id][draggable='true']")].map(
+    (row) => row.dataset.categoryId
+  );
+
+  if (categorySortStatus) {
+    categorySortStatus.textContent = "Saving category order...";
+    categorySortStatus.classList.remove("error");
+  }
+
+  try {
+    const response = await fetch("/categories/reorder", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ categoryIds })
+    });
+    if (!response.ok) throw new Error("Could not save category order.");
+    if (categorySortStatus) categorySortStatus.textContent = "Category order saved.";
+  } catch (error) {
+    if (categorySortStatus) {
+      categorySortStatus.textContent = error instanceof Error ? error.message : "Could not save category order.";
+      categorySortStatus.classList.add("error");
+    }
+  }
+};
+
+categoryRows.forEach((row) => {
+  row.addEventListener("dragstart", () => {
+    draggedCategoryRow = row;
+    row.classList.add("dragging");
+  });
+
+  row.addEventListener("dragover", (event) => {
+    event.preventDefault();
+    if (!draggedCategoryRow || draggedCategoryRow === row) return;
+    row.classList.add("drag-over");
+  });
+
+  row.addEventListener("dragleave", () => row.classList.remove("drag-over"));
+
+  row.addEventListener("drop", (event) => {
+    event.preventDefault();
+    row.classList.remove("drag-over");
+    if (!draggedCategoryRow || draggedCategoryRow === row) return;
+
+    const body = row.parentElement;
+    const rows = [...body.querySelectorAll("[data-category-id][draggable='true']")];
+    const draggedIndex = rows.indexOf(draggedCategoryRow);
+    const targetIndex = rows.indexOf(row);
+    body.insertBefore(draggedCategoryRow, draggedIndex < targetIndex ? row.nextSibling : row);
+    saveCategoryOrder();
+  });
+
+  row.addEventListener("dragend", () => {
+    row.classList.remove("dragging");
+    document.querySelectorAll(".drag-over").forEach((item) => item.classList.remove("drag-over"));
+    draggedCategoryRow = null;
+  });
+});

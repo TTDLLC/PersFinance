@@ -2,7 +2,6 @@
 <form method="post" action="<%= category.id ? `/categories/${category.id}` : "/categories" %>" class="form grid-form">
   <label>Name<input name="name" value="<%= category.name || "" %>" required></label>
   <label>Type<select name="type"><% categoryTypes.forEach((type) => { %><option value="<%= type %>" <%= category.type === type ? "selected" : "" %>><%= label(type) %></option><% }) %></select></label>
-  <label>Display Order<input type="number" name="displayOrder" value="<%= category.displayOrder || 0 %>"></label>
   <% if (category.id) { %>
     <div class="panel full">
       <h2>Category Usage</h2>
