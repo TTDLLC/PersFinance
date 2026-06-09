@@ -423,6 +423,11 @@ summary {
   margin: 0;
 }
 
+.embedded-filter select,
+.embedded-filter button {
+  height: 42px;
+}
+
 .field-help {
   align-self: end;
   color: var(--muted);

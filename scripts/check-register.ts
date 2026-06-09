@@ -86,6 +86,8 @@ const main = async () => {
     const defaultRegister = await getAccountRegister(account.id);
     assert(defaultRegister, "Default active register should load.");
     assert(defaultRegister?.rows.length === 3, "Default active register should exclude void transactions.");
+    assert(defaultRegister.balance.statementBalance === "500.00", "Register header balance should use the statement-chain anchor.");
+    assert(defaultRegister.balance.currentBalance === "550.00", "Current Balance should continue to include active transactions.");
     assert(defaultRegister.rows.at(-1)?.balanceAfter === 550, "Default active register should track running balance from statement-chain balance.");
 
     const allRegister = await getAccountRegister(account.id, "all");
@@ -134,6 +136,22 @@ const main = async () => {
     assert(reloaded.data.lastReconciledStatementId === result.statementId, "Finalized reconciliation should update statement-chain statement id.");
     assert((await getAccountRegister(account.id))?.rows.length === 0, "Reconciled transactions should leave the default active register.");
 
+    await db.insert(transactions).values({
+      accountId: account.id,
+      payeeId: payee.id,
+      categoryId: category.id,
+      date: "2026-07-01",
+      amount: "-25.00",
+      status: "entered",
+      description: "Unreconciled after statement"
+    });
+
+    const registerAfterActivity = await getAccountRegister(account.id);
+    assert(registerAfterActivity, "Register should load after unreconciled activity.");
+    assert(registerAfterActivity.balance.statementBalance === "550.00", "Unreconciled activity must not change the register header anchor balance.");
+    assert(registerAfterActivity.balance.currentBalance === "525.00", "Current Balance should still reflect unreconciled activity.");
+    assert(registerAfterActivity.rows.at(-1)?.balanceAfter === 525, "Running balance should begin at the reconciled anchor.");
+
     const server = await startServer();
     try {
       const cookie = await login(server.baseUrl);
@@ -141,7 +159,23 @@ const main = async () => {
       const dashboardHtml = await dashboardResponse.text();
       assert(dashboardResponse.status === 200, "Dashboard route should load.");
       assert(dashboardHtml.includes("Current Balance"), "Dashboard should show Current Balance.");
+      assert(dashboardHtml.includes(`class="small-button" href="/accounts/${account.id}/register">Register</a>`), "Dashboard should show a Register action button.");
+      assert(!dashboardHtml.includes(`href="/accounts/${account.id}/register">${testAccountName}</a>`), "Dashboard account name should not be the register link.");
       assertTextExcludes(dashboardHtml, ["Working Balance", "Snapshot Balance", "Post-Snapshot Activity", "Projection"], "Dashboard old balance concepts");
+
+      const registerResponse = await fetch(`${server.baseUrl}/accounts/${account.id}/register`, { headers: { cookie } });
+      const registerHtml = await registerResponse.text();
+      assert(registerResponse.status === 200, "Account register route should load.");
+      assert(registerHtml.includes("Reconciled on 2026-06-30, Balance: $550.00"), "Register header should show the last reconciliation and anchor balance.");
+      assert(!registerHtml.includes("Balance: $525.00"), "Register header should not show the rolling current balance.");
+      assert(!registerHtml.includes(`/accounts/${account.id}/reconcile`), "Register should not link directly to reconciliation.");
+      const newTransactionPosition = registerHtml.indexOf(">New Transaction</a>");
+      const statementsPosition = registerHtml.indexOf(">Statements</a>");
+      const accountSettingsPosition = registerHtml.indexOf(">Account Settings</a>");
+      assert(
+        newTransactionPosition >= 0 && newTransactionPosition < statementsPosition && statementsPosition < accountSettingsPosition,
+        "Register actions should be ordered New Transaction, Statements, Account Settings."
+      );
     } finally {
       await server.close();
     }

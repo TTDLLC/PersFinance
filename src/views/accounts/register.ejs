@@ -1,13 +1,18 @@
 <section class="page-header row">
   <div>
     <h1><%= register.account.name %> Register</h1>
-    <p>Current Balance <%= money(register.balance.currentBalance) %>; reconciliation <%= register.displayLastReconciledDate || "not reconciled yet" %>.</p>
+    <p>
+      <% if (register.displayLastReconciledDate) { %>
+        Reconciled on <%= register.displayLastReconciledDate %>, Balance: <%= money(register.balance.statementBalance) %>
+      <% } else { %>
+        Not reconciled yet, Balance: <%= money(register.balance.statementBalance) %>
+      <% } %>
+    </p>
   </div>
   <div class="form-actions">
     <a class="button" href="/accounts/<%= register.account.id %>/register/new">New Transaction</a>
-    <a class="button secondary-button" href="/accounts/<%= register.account.id %>/edit">Account Settings</a>
     <a class="button secondary-button" href="/accounts/<%= register.account.id %>/statements">Statements</a>
-    <a class="button secondary-button" href="/accounts/<%= register.account.id %>/reconcile">Reconcile</a>
+    <a class="button secondary-button" href="/accounts/<%= register.account.id %>/edit">Account Settings</a>
   </div>
 </section>
 

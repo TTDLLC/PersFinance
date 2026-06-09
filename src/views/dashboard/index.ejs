@@ -9,18 +9,20 @@
       <th>Type</th>
       <th>Current Balance</th>
       <th>Reconciliation</th>
+      <th>Actions</th>
     </tr>
   </thead>
   <tbody>
     <% if (!accounts.length) { %>
-      <tr><td class="empty-state" colspan="4">No accounts yet.</td></tr>
+      <tr><td class="empty-state" colspan="5">No accounts yet.</td></tr>
     <% } %>
     <% accounts.forEach((account) => { %>
       <tr>
-        <td><a href="/accounts/<%= account.id %>/register"><%= account.name %></a></td>
+        <td><%= account.name %></td>
         <td><%= label(account.type) %></td>
         <td class="<%= signedClass(account.currentBalance) %>"><%= money(account.currentBalance) %></td>
         <td><%= account.lastReconciledDate || "Not reconciled yet" %></td>
+        <td class="actions"><a class="small-button" href="/accounts/<%= account.id %>/register">Register</a></td>
       </tr>
     <% }) %>
   </tbody>
