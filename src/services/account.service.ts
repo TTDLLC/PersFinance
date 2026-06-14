@@ -328,7 +328,7 @@ const transactionRows = async (accountId: string, view: RegisterView | "statemen
       updatedAt: transactions.updatedAt
     })
     .from(transactions)
-    .innerJoin(payees, eq(transactions.payeeId, payees.id))
+    .leftJoin(payees, eq(transactions.payeeId, payees.id))
     .leftJoin(categories, eq(transactions.categoryId, categories.id))
     .where(and(...filters))
     .orderBy(asc(transactions.date), asc(transactions.createdAt), asc(transactions.id));

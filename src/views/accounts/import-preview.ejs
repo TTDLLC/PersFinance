@@ -1,0 +1,106 @@
+<section class="page-header row">
+  <div>
+    <h1>Preview CSV Import</h1>
+    <p><%= account.name %> · <%= preview.filename || "Unnamed CSV" %></p>
+  </div>
+  <div class="form-actions">
+    <a class="button secondary-button" href="/accounts/<%= account.id %>/imports">Cancel</a>
+  </div>
+</section>
+
+<section class="metric-grid import-summary">
+  <article class="metric-card"><span>Total rows</span><strong><%= preview.totalRows %></strong></article>
+  <article class="metric-card"><span>Ready by default</span><strong><%= preview.validRows %></strong></article>
+  <article class="metric-card"><span>Duplicates</span><strong><%= preview.duplicateRows %></strong></article>
+  <article class="metric-card"><span>Errors</span><strong><%= preview.errorRows %></strong></article>
+</section>
+
+<form method="post" action="/accounts/<%= account.id %>/imports/confirm">
+  <section class="table-panel">
+    <div class="import-preview-filters" role="group" aria-label="Filter preview rows">
+      <button class="secondary-button active" type="button" data-import-filter="all" aria-pressed="true">
+        All Rows <span><%= preview.totalRows %></span>
+      </button>
+      <button class="secondary-button" type="button" data-import-filter="ready" aria-pressed="false">
+        Rows To Import <span><%= preview.validRows %></span>
+      </button>
+      <button class="secondary-button" type="button" data-import-filter="duplicate" aria-pressed="false">
+        Duplicates <span><%= preview.duplicateRows %></span>
+      </button>
+      <button class="secondary-button" type="button" data-import-filter="error" aria-pressed="false">
+        Errors <span><%= preview.errorRows %></span>
+      </button>
+    </div>
+    <table class="compact-table">
+      <thead>
+        <tr>
+          <th>Import</th>
+          <th>CSV Row</th>
+          <th>Date</th>
+          <th>Payee</th>
+          <th>Description</th>
+          <th>Category</th>
+          <th>Amount</th>
+          <th>Memo</th>
+          <th>Reference</th>
+          <th>Result</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% if (!preview.rows.length) { %>
+          <tr><td class="empty-state" colspan="10">The CSV contains headers but no transaction rows.</td></tr>
+        <% } %>
+        <% preview.rows.forEach((row) => { %>
+          <tr
+            class="<%= row.errors.length ? "import-error-row" : row.duplicate ? "import-duplicate-row" : "" %>"
+            data-import-preview-row
+            data-import-row-state="<%= row.errors.length ? "error" : row.duplicate ? "duplicate" : "ready" %>"
+          >
+            <td>
+              <% if (row.errors.length) { %>
+                <span class="muted">No</span>
+              <% } else if (row.duplicate) { %>
+                <label class="checkbox compact-checkbox">
+                  <input type="checkbox" name="includedDuplicateIds" value="<%= row.id %>">
+                  <span class="visually-hidden">Include duplicate row <%= row.rowNumber %></span>
+                </label>
+              <% } else { %>
+                <span>Yes</span>
+              <% } %>
+            </td>
+            <td><%= row.rowNumber %></td>
+            <td><%= row.date %></td>
+            <td>
+              <%= row.payeeName %>
+              <% if (row.createsPayee && !row.errors.length) { %>
+                <span class="status">New payee will be created</span>
+              <% } %>
+            </td>
+            <td><%= row.description || "" %></td>
+            <td><%= row.categoryName || "" %></td>
+            <td class="<%= signedClass(row.amount) %>"><%= accountingMoney(row.amount) %></td>
+            <td><%= row.memo || "" %></td>
+            <td><%= row.reference || "" %></td>
+            <td>
+              <% if (row.errors.length) { %>
+                <span class="import-errors"><%= row.errors.join(" ") %></span>
+              <% } else if (row.duplicate) { %>
+                <span class="status">Duplicate · skipped by default</span>
+              <% } else { %>
+                <span class="status">Ready</span>
+              <% } %>
+            </td>
+          </tr>
+        <% }) %>
+        <tr data-import-filter-empty hidden>
+          <td class="empty-state" colspan="10">No rows match this filter.</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <div class="form-actions">
+    <button type="submit" <%= preview.validRows + preview.duplicateRows === 0 ? "disabled" : "" %>>Confirm Import</button>
+    <a class="button secondary-button" href="/accounts/<%= account.id %>/imports">Cancel</a>
+  </div>
+</form>

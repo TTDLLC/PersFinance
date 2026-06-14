@@ -1,8 +1,9 @@
 document.addEventListener("submit", (event) => {
   const form = event.target;
   if (!(form instanceof HTMLFormElement)) return;
-  const dangerButton = form.querySelector("button.danger");
-  if (dangerButton && !window.confirm("Continue with this change?")) {
+  const dangerButton = form.querySelector("button.danger, button[data-confirm]");
+  const message = dangerButton?.dataset.confirm || "Continue with this change?";
+  if (dangerButton && !window.confirm(message)) {
     event.preventDefault();
   }
 });
@@ -50,6 +51,30 @@ document.querySelectorAll("[data-reconcile-form]").forEach((form) => {
   updateReconciliationForm(form);
   form.addEventListener("input", () => updateReconciliationForm(form));
   form.addEventListener("change", () => updateReconciliationForm(form));
+});
+
+const importFilterButtons = [...document.querySelectorAll("[data-import-filter]")];
+const importPreviewRows = [...document.querySelectorAll("[data-import-preview-row]")];
+const importFilterEmpty = document.querySelector("[data-import-filter-empty]");
+
+importFilterButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    const filter = button.dataset.importFilter;
+    let visibleRows = 0;
+
+    importPreviewRows.forEach((row) => {
+      const visible = filter === "all" || row.dataset.importRowState === filter;
+      row.hidden = !visible;
+      if (visible) visibleRows += 1;
+    });
+
+    importFilterButtons.forEach((candidate) => {
+      const active = candidate === button;
+      candidate.classList.toggle("active", active);
+      candidate.setAttribute("aria-pressed", String(active));
+    });
+    if (importFilterEmpty) importFilterEmpty.hidden = visibleRows !== 0;
+  });
 });
 
 const categoryRows = [...document.querySelectorAll("[data-category-id][draggable='true']")];

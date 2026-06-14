@@ -12,7 +12,6 @@ const optionalUuid = z.preprocess(
   (value) => (value === "" || value === undefined ? null : value),
   z.string().uuid().nullable()
 );
-const requiredUuid = (field: string) => z.string().uuid(`${field} is required.`);
 const requiredDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "A valid date is required.");
 const validCalendarDate = (value: string) => {
   const [year, month, day] = value.split("-").map(Number);
@@ -44,11 +43,14 @@ export const transactionSchema = z.object({
   date: requiredDate.refine(validCalendarDate, "A valid transaction date is required."),
   amount: numberFromForm("Amount").refine((value) => value !== 0, "Amount cannot be zero."),
   accountId: optionalUuid,
-  payeeId: requiredUuid("Payee"),
+  payeeId: optionalUuid,
   description: optionalText,
   categoryId: optionalUuid,
   status: z.enum(transactionStatuses),
   notes: optionalText
+}).refine((value) => Boolean(value.payeeId || value.description), {
+  message: "Payee or Description is required.",
+  path: ["description"]
 });
 
 export const reconciliationSchema = z.object({

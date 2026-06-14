@@ -12,6 +12,7 @@
   <label>Amount<input type="number" step="0.01" name="amount" value="<%= transaction.amount || "" %>" required></label>
   <label>Status<select name="status"><% statuses.forEach((status) => { %><option value="<%= status %>" <%= (transaction.status || "entered") === status ? "selected" : "" %>><%= label(status) %></option><% }) %></select></label>
   <label class="full">Description<textarea name="description"><%= transaction.description || "" %></textarea></label>
+  <p class="field-help full">A Payee or Description is required.</p>
   <label class="full">Notes<textarea name="notes"><%= transaction.notes || "" %></textarea></label>
   <div class="form-actions full"><button type="submit">Save Transaction</button><a href="/accounts/<%= account.id %>/register">Cancel</a></div>
 </form>
