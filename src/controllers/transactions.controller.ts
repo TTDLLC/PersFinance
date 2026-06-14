@@ -54,7 +54,7 @@ export const listTransactions = async (req: Request, res: Response) => {
     })
     .from(transactions)
     .innerJoin(accounts, eq(transactions.accountId, accounts.id))
-    .innerJoin(payees, eq(transactions.payeeId, payees.id))
+    .leftJoin(payees, eq(transactions.payeeId, payees.id))
     .leftJoin(categories, eq(transactions.categoryId, categories.id))
     .where(filters.length ? and(...filters) : undefined)
     .orderBy(desc(transactions.date), desc(transactions.createdAt));

@@ -41,7 +41,7 @@
     <% transactions.forEach((transaction) => { %>
       <tr>
         <td><%= transaction.date %></td>
-        <td><%= transaction.payeeName %></td>
+        <td><%= transaction.payeeName || "" %></td>
         <td><%= transaction.description || "" %></td>
         <td class="<%= signedClass(transaction.amount) %>"><%= accountingMoney(transaction.amount) %></td>
         <td><span class="status"><%= label(transaction.status) %></span></td>

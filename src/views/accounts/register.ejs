@@ -11,6 +11,7 @@
   </div>
   <div class="form-actions">
     <a class="button" href="/accounts/<%= register.account.id %>/register/new">New Transaction</a>
+    <a class="button secondary-button" href="/accounts/<%= register.account.id %>/imports">Import CSV</a>
     <a class="button secondary-button" href="/accounts/<%= register.account.id %>/statements">Statements</a>
     <a class="button secondary-button" href="/accounts/<%= register.account.id %>/edit">Account Settings</a>
   </div>
@@ -47,7 +48,7 @@
     <% register.rows.forEach((item) => { %>
       <tr class="<%= item.status === "void" ? "void-row" : "" %>">
         <td><%= item.date %></td>
-        <td><%= item.payeeName %></td>
+        <td><%= item.payeeName || "" %></td>
         <td><%= item.description || "" %></td>
         <td><%= item.categoryName || "" %></td>
         <td class="<%= signedClass(item.amount) %>"><%= accountingMoney(item.amount) %></td>

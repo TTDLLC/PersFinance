@@ -31,7 +31,7 @@
     <% transactions.forEach((item) => { %>
       <tr>
         <td><%= item.date %></td>
-        <td><%= item.payeeName %></td>
+        <td><%= item.payeeName || "" %></td>
         <td><%= item.description || "" %></td>
         <td><%= item.accountName || "" %></td>
         <td><%= item.categoryName || "" %></td>

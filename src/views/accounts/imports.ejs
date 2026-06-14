@@ -1,0 +1,69 @@
+<section class="page-header row">
+  <div>
+    <h1><%= account.name %> CSV Imports</h1>
+    <p>Upload a CSV to preview transactions before anything is written.</p>
+  </div>
+  <div class="form-actions">
+    <a class="button secondary-button" href="/accounts/<%= account.id %>/register">Back to Register</a>
+  </div>
+</section>
+
+<form class="form" method="post" action="/accounts/<%= account.id %>/imports/preview" enctype="multipart/form-data">
+  <div class="grid-form">
+    <label class="full">CSV file
+      <input type="file" name="csvFile" accept=".csv,text/csv" required>
+    </label>
+    <p class="field-help full">
+      Required columns: Date, Amount. Optional: Payee, Description, Category, Memo, Reference.
+      Each row must include a Payee or Description. Dates use YYYY-MM-DD.
+    </p>
+  </div>
+  <div class="form-actions">
+    <button type="submit">Preview Import</button>
+  </div>
+</form>
+
+<section class="page-header import-history-heading">
+  <h2>Import Batches</h2>
+  <p>Rollback is available only while every transaction in the batch remains unreconciled.</p>
+</section>
+
+<section class="table-panel">
+  <table>
+    <thead>
+      <tr>
+        <th>Created</th>
+        <th>File</th>
+        <th>Rows</th>
+        <th>Imported</th>
+        <th>Duplicates</th>
+        <th>Errors</th>
+        <th>Rollback</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% if (!batches.length) { %>
+        <tr><td class="empty-state" colspan="7">No confirmed imports for this account.</td></tr>
+      <% } %>
+      <% batches.forEach((batch) => { %>
+        <tr>
+          <td><%= new Date(batch.createdAt).toLocaleString() %></td>
+          <td><%= batch.filename || "Unnamed CSV" %></td>
+          <td><%= batch.totalRows %></td>
+          <td><%= batch.importedRows %></td>
+          <td><%= batch.duplicateRows %></td>
+          <td><%= batch.errorRows %></td>
+          <td>
+            <% if (batch.reconciledTransactions > 0) { %>
+              <span class="muted">Locked after reconciliation</span>
+            <% } else { %>
+              <form method="post" action="/accounts/<%= account.id %>/imports/<%= batch.id %>/delete">
+                <button class="link-button danger-link" type="submit" data-confirm="Delete this import batch and its transactions?">Delete batch</button>
+              </form>
+            <% } %>
+          </td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+</section>

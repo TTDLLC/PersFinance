@@ -4,6 +4,7 @@ A focused internal personal finance register app. This build centers on factual 
 
 - Accounts
 - Account register
+- Account-specific CSV transaction import with preview and rollback
 - Statements
 - Reconciliation
 - Current Balance
@@ -72,7 +73,11 @@ http://localhost:3000
 ```bash
 npm run test:balance
 npm run test:register
+npm run test:import
+npm run test:large-import
 ```
+
+See [Step 1 CSV Import and Foundation Review](docs/STEP_1_IMPORT_AND_FOUNDATION_REVIEW.md) for the supported CSV format, duplicate and payee behavior, rollback rules, validation plan, and scoped operational findings.
 
 ## Core Balance Rule
 

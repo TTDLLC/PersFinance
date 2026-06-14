@@ -1,5 +1,6 @@
 import {
   boolean,
+  check,
   date,
   integer,
   index,
@@ -12,6 +13,7 @@ import {
   uniqueIndex,
   uuid
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 
 const timestamps = {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -93,12 +95,31 @@ export const accountStatements = pgTable(
   })
 );
 
+export const importBatches = pgTable(
+  "import_batches",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+    filename: text("filename"),
+    totalRows: integer("total_rows").notNull(),
+    importedRows: integer("imported_rows").notNull(),
+    duplicateRows: integer("duplicate_rows").notNull(),
+    errorRows: integer("error_rows").notNull(),
+    ...timestamps
+  },
+  (table) => ({
+    accountCreatedIdx: index("import_batches_account_created_idx").on(table.accountId, table.createdAt)
+  })
+);
+
 export const payees = pgTable(
   "payees",
   {
     id: uuid("id").primaryKey().defaultRandom(),
     name: text("name").notNull(),
     notes: text("notes"),
+    source: text("source").notNull().default("manual"),
+    createdByImportBatchId: uuid("created_by_import_batch_id").references(() => importBatches.id, { onDelete: "set null" }),
     active: boolean("active").notNull().default(true),
     ...timestamps
   },
@@ -138,15 +159,22 @@ export const transactions = pgTable(
     amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
     status: transactionStatusEnum("status").notNull().default("entered"),
     statementId: uuid("statement_id").references(() => accountStatements.id, { onDelete: "set null" }),
-    payeeId: uuid("payee_id").notNull().references(() => payees.id),
+    payeeId: uuid("payee_id").references(() => payees.id),
     description: text("description"),
     categoryId: uuid("category_id").references(() => categories.id, { onDelete: "set null" }),
     notes: text("notes"),
+    reference: text("reference"),
+    importBatchId: uuid("import_batch_id").references(() => importBatches.id, { onDelete: "set null" }),
     ...timestamps
   },
   (table) => ({
     accountActiveIdx: index("transactions_account_active_idx").on(table.accountId, table.statementId, table.status),
-    accountDateIdx: index("transactions_account_date_idx").on(table.accountId, table.date)
+    accountDateIdx: index("transactions_account_date_idx").on(table.accountId, table.date),
+    importBatchIdx: index("transactions_import_batch_idx").on(table.importBatchId),
+    payeeOrDescriptionCheck: check(
+      "transactions_payee_or_description_check",
+      sql`${table.payeeId} is not null or nullif(btrim(${table.description}), '') is not null`
+    )
   })
 );
 
