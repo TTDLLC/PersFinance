@@ -48,7 +48,28 @@ const updateReconciliationForm = (form) => {
 };
 
 document.querySelectorAll("[data-reconcile-form]").forEach((form) => {
+  const transactionInputs = [...form.querySelectorAll("[data-reconcile-transaction]")];
+  let lastClickedTransaction = null;
+
   updateReconciliationForm(form);
+  form.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement) || !target.matches("[data-reconcile-transaction]")) return;
+
+    if (event.shiftKey && lastClickedTransaction) {
+      const lastIndex = transactionInputs.indexOf(lastClickedTransaction);
+      const targetIndex = transactionInputs.indexOf(target);
+      const rangeStart = Math.min(lastIndex, targetIndex);
+      const rangeEnd = Math.max(lastIndex, targetIndex);
+
+      transactionInputs.slice(rangeStart, rangeEnd + 1).forEach((input) => {
+        input.checked = target.checked;
+      });
+      updateReconciliationForm(form);
+    }
+
+    lastClickedTransaction = target;
+  });
   form.addEventListener("input", () => updateReconciliationForm(form));
   form.addEventListener("change", () => updateReconciliationForm(form));
 });

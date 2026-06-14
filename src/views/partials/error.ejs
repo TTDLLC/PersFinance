@@ -1,4 +1,8 @@
 <section class="page-header">
-  <h1>Server Error</h1>
-  <p>Something went wrong while handling the request.</p>
+  <h1><%= error?.status === 413 || error?.statusCode === 413 ? "Request Too Large" : "Server Error" %></h1>
+  <p>
+    <%= error?.status === 413 || error?.statusCode === 413
+      ? "This request contains more data than the server can safely process."
+      : "Something went wrong while handling the request." %>
+  </p>
 </section>

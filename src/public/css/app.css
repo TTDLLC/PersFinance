@@ -193,6 +193,24 @@ tr:last-child td {
   padding: 2px 8px;
 }
 
+.statement-linked-indicator {
+  align-items: center;
+  color: var(--accent);
+  display: inline-flex;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+.statement-linked-indicator svg {
+  fill: none;
+  height: 16px;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.4;
+  width: 16px;
+}
+
 .muted {
   color: var(--muted);
 }
@@ -384,6 +402,34 @@ summary {
 }
 
 .reconciliation-summary {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: 18px;
+}
+
+.reconciliation-form {
+  padding-top: 0;
+}
+
+.reconciliation-sticky {
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+  box-shadow: 0 8px 12px -12px rgba(23, 32, 38, 0.5);
+  margin: 0 -18px;
+  padding: 18px;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+
+.reconciliation-sticky .page-header {
+  margin-bottom: 18px;
+}
+
+.reconciliation-actions {
+  justify-content: flex-end;
+}
+
+.reconciliation-notes {
   margin-top: 18px;
 }
 
@@ -592,6 +638,19 @@ summary {
   }
 
   .page-header .form-actions {
+    justify-content: flex-start;
+  }
+
+  .reconciliation-sticky {
+    box-shadow: none;
+    position: static;
+  }
+
+  .reconciliation-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .reconciliation-actions {
     justify-content: flex-start;
   }
 }

@@ -52,7 +52,17 @@
         <td><%= item.description || "" %></td>
         <td><%= item.categoryName || "" %></td>
         <td class="<%= signedClass(item.amount) %>"><%= accountingMoney(item.amount) %></td>
-        <td><span class="status"><%= label(item.status) %></span></td>
+        <td>
+          <span class="status"><%= label(item.status) %></span>
+          <% if (item.statementId) { %>
+            <span class="statement-linked-indicator" role="img" aria-label="Reconciled" title="Reconciled - Statement-linked">
+              <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                <path d="M4 1.5h5l3 3v10H4z"></path>
+                <path d="M9 1.5v3h3M6 8h4M6 10.5h4"></path>
+              </svg>
+            </span>
+          <% } %>
+        </td>
         <td class="<%= signedClass(item.balanceAfter) %>"><%= accountingMoney(item.balanceAfter) %></td>
         <td class="actions">
           <% if (item.canEdit) { %>

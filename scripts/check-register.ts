@@ -136,15 +136,18 @@ const main = async () => {
     assert(reloaded.data.lastReconciledStatementId === result.statementId, "Finalized reconciliation should update statement-chain statement id.");
     assert((await getAccountRegister(account.id))?.rows.length === 0, "Reconciled transactions should leave the default active register.");
 
-    await db.insert(transactions).values({
-      accountId: account.id,
-      payeeId: payee.id,
-      categoryId: category.id,
-      date: "2026-07-01",
-      amount: "-25.00",
-      status: "entered",
-      description: "Unreconciled after statement"
-    });
+    const [unreconciledTransaction] = await db
+      .insert(transactions)
+      .values({
+        accountId: account.id,
+        payeeId: payee.id,
+        categoryId: category.id,
+        date: "2026-07-01",
+        amount: "-25.00",
+        status: "entered",
+        description: "Unreconciled after statement"
+      })
+      .returning({ id: transactions.id });
 
     const registerAfterActivity = await getAccountRegister(account.id);
     assert(registerAfterActivity, "Register should load after unreconciled activity.");
@@ -175,6 +178,93 @@ const main = async () => {
       assert(
         newTransactionPosition >= 0 && newTransactionPosition < statementsPosition && statementsPosition < accountSettingsPosition,
         "Register actions should be ordered New Transaction, Statements, Account Settings."
+      );
+
+      const allRegisterResponse = await fetch(`${server.baseUrl}/accounts/${account.id}/register?view=all`, { headers: { cookie } });
+      const allRegisterHtml = await allRegisterResponse.text();
+      assert(allRegisterResponse.status === 200, "All-transactions register route should load.");
+      assert(
+        allRegisterHtml.includes('class="statement-linked-indicator"') && allRegisterHtml.includes('aria-label="Reconciled"'),
+        "Statement-linked register transactions should show an accessible reconciled indicator."
+      );
+
+      const reconciliationResponse = await fetch(`${server.baseUrl}/accounts/${account.id}/reconcile`, { headers: { cookie } });
+      const reconciliationHtml = await reconciliationResponse.text();
+      assert(reconciliationResponse.status === 200, "Reconciliation route should load.");
+      assert(
+        reconciliationHtml.includes("Shift-click a transaction to select or clear the full range"),
+        "Reconciliation should explain shift-click range selection."
+      );
+      assert(
+        reconciliationHtml.includes("data-reconcile-transaction"),
+        "Reconciliation transaction checkboxes should expose the client-side selection hook."
+      );
+      assert(
+        reconciliationHtml.includes("data-reconciliation-sticky"),
+        "Reconciliation controls should expose the sticky header hook."
+      );
+      const reconciliationSummaryPosition = reconciliationHtml.indexOf("reconciliation-summary");
+      const cancelPosition = reconciliationHtml.indexOf(">Cancel</a>");
+      const completePosition = reconciliationHtml.indexOf(">Complete Reconciliation</button>");
+      const reconciliationTablePosition = reconciliationHtml.indexOf("<table>");
+      assert(
+        reconciliationSummaryPosition >= 0 &&
+          reconciliationSummaryPosition < cancelPosition &&
+          cancelPosition < completePosition &&
+          completePosition < reconciliationTablePosition,
+        "Cancel and Complete Reconciliation should appear below the summary and above the transaction table."
+      );
+
+      const largeSelection = new URLSearchParams({
+        statementDate: "2026-07-31",
+        endingBalance: "525.00",
+        notes: "Large selection parser regression"
+      });
+      for (let index = 0; index < 1_200; index += 1) {
+        largeSelection.append("selectedTransactionIds", unreconciledTransaction.id);
+      }
+      const largeSelectionResponse = await fetch(`${server.baseUrl}/accounts/${account.id}/reconcile`, {
+        method: "POST",
+        redirect: "manual",
+        headers: {
+          cookie,
+          "content-type": "application/x-www-form-urlencoded"
+        },
+        body: largeSelection.toString()
+      });
+      assert(
+        largeSelectionResponse.status === 302 &&
+          largeSelectionResponse.headers.get("location")?.startsWith(`/accounts/${account.id}/statements/`),
+        "Reconciliation should accept more than 1,000 selected transaction parameters."
+      );
+
+      const oversizedMarker = "must-not-appear-in-error-logs";
+      const oversizedRequest = new URLSearchParams();
+      for (let index = 0; index < 50_001; index += 1) {
+        oversizedRequest.append("field", oversizedMarker);
+      }
+      const errorLogs: unknown[][] = [];
+      const originalConsoleError = console.error;
+      console.error = (...args: unknown[]) => {
+        errorLogs.push(args);
+      };
+      let oversizedResponse: Response;
+      try {
+        oversizedResponse = await fetch(`${server.baseUrl}/login`, {
+          method: "POST",
+          headers: { "content-type": "application/x-www-form-urlencoded" },
+          body: oversizedRequest.toString()
+        });
+      } finally {
+        console.error = originalConsoleError;
+      }
+      const oversizedHtml = await oversizedResponse.text();
+      assert(oversizedResponse.status === 413, "Requests beyond the bounded parameter limit should return 413.");
+      assert(oversizedHtml.includes("Request Too Large"), "The 413 response should render a friendly error page.");
+      assert(!oversizedHtml.includes("currentUser is not defined"), "The error page should not fail while rendering navigation.");
+      assert(
+        !JSON.stringify(errorLogs).includes(oversizedMarker),
+        "Request parsing errors should not log raw submitted form data."
       );
     } finally {
       await server.close();

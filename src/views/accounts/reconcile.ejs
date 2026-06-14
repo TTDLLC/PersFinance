@@ -1,48 +1,56 @@
-<section class="page-header row">
-  <div>
-    <h1><%= reconciliation.account.name %> Reconciliation</h1>
-    <p>Select transactions from the statement. Nothing is assigned to the statement until the difference is exactly zero.</p>
-  </div>
-  <div class="form-actions">
-    <a class="button secondary-button" href="/accounts/<%= reconciliation.account.id %>/statements">Statements</a>
-    <a class="button secondary-button" href="/accounts/<%= reconciliation.account.id %>/register">Register</a>
-  </div>
-</section>
-
 <form
-  class="form"
+  class="form reconciliation-form"
   method="post"
   action="/accounts/<%= reconciliation.account.id %>/reconcile"
   data-reconcile-form
   data-starting-balance="<%= reconciliation.preview.startingBalance %>"
 >
-  <div class="grid-form">
-    <label>Statement Date
-      <input type="date" name="statementDate" value="<%= reconciliation.preview.statementDate %>" required>
-    </label>
-    <label>Starting Balance
-      <input value="<%= money(reconciliation.preview.startingBalance) %>" disabled>
-    </label>
-    <label>Ending Balance
-      <input type="number" step="0.01" name="endingBalance" value="<%= reconciliation.preview.endingBalance %>" required data-ending-balance>
-    </label>
-    <label class="full">Notes<textarea name="notes"></textarea></label>
-  </div>
+  <section class="reconciliation-sticky" data-reconciliation-sticky>
+    <div class="page-header row">
+      <div>
+        <h1><%= reconciliation.account.name %> Reconciliation</h1>
+        <p>Select transactions from the statement. Nothing is assigned to the statement until the difference is exactly zero.</p>
+      </div>
+      <div class="form-actions">
+        <a class="button secondary-button" href="/accounts/<%= reconciliation.account.id %>/register">Register</a>
+      </div>
+    </div>
 
-  <div class="metric-grid reconciliation-summary">
-    <div class="metric-card">
-      <span>Statement Ending Balance</span>
-      <strong data-statement-ending><%= money(reconciliation.preview.endingBalance) %></strong>
+    <div class="grid-form">
+      <label>Statement Date
+        <input type="date" name="statementDate" value="<%= reconciliation.preview.statementDate %>" required>
+      </label>
+      <label>Starting Balance
+        <input value="<%= money(reconciliation.preview.startingBalance) %>" disabled>
+      </label>
+      <label>Ending Balance
+        <input type="number" step="0.01" name="endingBalance" value="<%= reconciliation.preview.endingBalance %>" required data-ending-balance>
+      </label>
     </div>
-    <div class="metric-card">
-      <span>Calculated Reconciled Balance</span>
-      <strong data-calculated-balance><%= money(reconciliation.preview.calculatedReconciledBalance) %></strong>
+
+    <div class="metric-grid reconciliation-summary">
+      <div class="metric-card">
+        <span>Statement Ending Balance</span>
+        <strong data-statement-ending><%= money(reconciliation.preview.endingBalance) %></strong>
+      </div>
+      <div class="metric-card">
+        <span>Calculated Ending Balance</span>
+        <strong data-calculated-balance><%= money(reconciliation.preview.calculatedReconciledBalance) %></strong>
+      </div>
+      <div class="metric-card">
+        <span>Difference</span>
+        <strong data-reconcile-difference class="<%= Number(reconciliation.preview.difference) === 0 ? "positive" : "negative" %>"><%= accountingMoney(reconciliation.preview.difference) %></strong>
+      </div>
     </div>
-    <div class="metric-card">
-      <span>Difference</span>
-      <strong data-reconcile-difference class="<%= Number(reconciliation.preview.difference) === 0 ? "positive" : "negative" %>"><%= accountingMoney(reconciliation.preview.difference) %></strong>
+
+    <div class="form-actions reconciliation-actions">
+      <a class="button secondary-button" href="/accounts/<%= reconciliation.account.id %>/statements">Cancel</a>
+      <button type="submit" data-complete-reconciliation <%= Number(reconciliation.preview.difference) === 0 ? "" : "disabled" %>>Complete Reconciliation</button>
     </div>
-  </div>
+  </section>
+
+  <label class="reconciliation-notes">Notes<textarea name="notes"></textarea></label>
+  <p class="field-help">Tip: Shift-click a transaction to select or clear the full range from the last transaction you clicked.</p>
 
   <table>
     <thead>
@@ -83,7 +91,4 @@
     </tbody>
   </table>
 
-  <div class="form-actions">
-    <button type="submit" data-complete-reconciliation <%= Number(reconciliation.preview.difference) === 0 ? "" : "disabled" %>>Complete Reconciliation</button>
-  </div>
 </form>
