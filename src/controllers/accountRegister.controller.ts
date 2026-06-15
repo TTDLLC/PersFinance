@@ -137,6 +137,10 @@ export const editAccountRegisterTransaction = async (req: Request, res: Response
     res.redirect(redirectToRegister(account.id));
     return;
   }
+  if (transaction.transferId) {
+    res.redirect(`/accounts/${account.id}/register/transfers/${transaction.transferId}/edit`);
+    return;
+  }
 
   res.render("layout", {
     title: `Edit ${account.data.name} Transaction`,
@@ -158,6 +162,11 @@ export const updateAccountRegisterTransaction = async (req: Request, res: Respon
 
   if (!editableRegisterStatuses.includes(existing.status as (typeof editableRegisterStatuses)[number]) || existing.statementId) {
     req.flash("error", "Reconciled and void transactions are locked and cannot be edited.");
+    res.redirect(redirectToRegister(account.id));
+    return;
+  }
+  if (existing.transferId) {
+    req.flash("error", "Transfers must be edited through the transfer workflow.");
     res.redirect(redirectToRegister(account.id));
     return;
   }
@@ -208,6 +217,11 @@ export const voidAccountRegisterTransaction = async (req: Request, res: Response
 
   if (!voidableRegisterStatuses.includes(transaction.status as (typeof voidableRegisterStatuses)[number]) || transaction.statementId) {
     req.flash("error", "Reconciled transactions cannot be voided.");
+    res.redirect(redirectToRegister(account.id));
+    return;
+  }
+  if (transaction.transferId) {
+    req.flash("error", "Transfers must be deleted through the transfer workflow.");
     res.redirect(redirectToRegister(account.id));
     return;
   }

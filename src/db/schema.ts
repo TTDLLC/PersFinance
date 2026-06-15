@@ -43,6 +43,15 @@ export const transactionStatusEnum = pgEnum("transaction_status", [
   "void"
 ]);
 
+export const commitmentFrequencyEnum = pgEnum("commitment_frequency", [
+  "once",
+  "weekly",
+  "biweekly",
+  "monthly",
+  "quarterly",
+  "yearly"
+]);
+
 export const users = pgTable(
   "users",
   {
@@ -165,16 +174,46 @@ export const transactions = pgTable(
     notes: text("notes"),
     reference: text("reference"),
     importBatchId: uuid("import_batch_id").references(() => importBatches.id, { onDelete: "set null" }),
+    transferId: uuid("transfer_id"),
     ...timestamps
   },
   (table) => ({
     accountActiveIdx: index("transactions_account_active_idx").on(table.accountId, table.statementId, table.status),
     accountDateIdx: index("transactions_account_date_idx").on(table.accountId, table.date),
     importBatchIdx: index("transactions_import_batch_idx").on(table.importBatchId),
+    transferIdx: index("transactions_transfer_idx").on(table.transferId),
     payeeOrDescriptionCheck: check(
       "transactions_payee_or_description_check",
       sql`${table.payeeId} is not null or nullif(btrim(${table.description}), '') is not null`
     )
+  })
+);
+
+export const futureCommitments = pgTable(
+  "future_commitments",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: text("name").notNull(),
+    payeeId: uuid("payee_id").references(() => payees.id, { onDelete: "set null" }),
+    categoryId: uuid("category_id").references(() => categories.id, { onDelete: "set null" }),
+    accountId: uuid("account_id").references(() => accounts.id, { onDelete: "set null" }),
+    amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
+    frequency: commitmentFrequencyEnum("frequency").notNull(),
+    nextDueDate: date("next_due_date").notNull(),
+    startDate: date("start_date").notNull(),
+    endDate: date("end_date"),
+    notes: text("notes"),
+    active: boolean("active").notNull().default(true),
+    ...timestamps
+  },
+  (table) => ({
+    dueIdx: index("future_commitments_due_idx").on(table.active, table.nextDueDate),
+    accountDueIdx: index("future_commitments_account_due_idx").on(table.accountId, table.active, table.nextDueDate),
+    dateRangeCheck: check(
+      "future_commitments_date_range_check",
+      sql`${table.endDate} is null or ${table.endDate} >= ${table.startDate}`
+    ),
+    nonzeroAmountCheck: check("future_commitments_nonzero_amount_check", sql`${table.amount} <> 0`)
   })
 );
 

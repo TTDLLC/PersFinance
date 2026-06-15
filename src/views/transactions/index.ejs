@@ -37,7 +37,13 @@
         <td><%= item.categoryName || "" %></td>
         <td><span class="status"><%= label(item.status) %></span></td>
         <td class="<%= signedClass(item.amount) %>"><%= accountingMoney(item.amount) %></td>
-        <td class="actions"><a href="/transactions/<%= item.id %>/edit">Edit</a></td>
+        <td class="actions">
+          <% if (item.transferId) { %>
+            <a href="/accounts/<%= item.accountId %>/register/transfers/<%= item.transferId %>/edit">Edit Transfer</a>
+          <% } else { %>
+            <a href="/transactions/<%= item.id %>/edit">Edit</a>
+          <% } %>
+        </td>
       </tr>
     <% }) %>
   </tbody>

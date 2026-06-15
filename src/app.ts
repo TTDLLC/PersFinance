@@ -16,6 +16,8 @@ import { dashboardRoutes } from "./routes/dashboard.routes.js";
 import { payeesRoutes } from "./routes/payees.routes.js";
 import { settingsRoutes } from "./routes/settings.routes.js";
 import { transactionsRoutes } from "./routes/transactions.routes.js";
+import { futureCommitmentsRoutes } from "./routes/futureCommitments.routes.js";
+import { getOverdueCommitments } from "./services/futureCommitments.service.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -60,6 +62,14 @@ app.use((req, res, next) => {
   };
   next();
 });
+app.use(async (req, res, next) => {
+  try {
+    res.locals.overdueCommitmentCount = req.user ? (await getOverdueCommitments()).length : 0;
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
 
 app.use(authRoutes);
 app.use("/", dashboardRoutes);
@@ -67,6 +77,7 @@ app.use("/accounts", accountsRoutes);
 app.use("/categories", categoriesRoutes);
 app.use("/payees", payeesRoutes);
 app.use("/transactions", transactionsRoutes);
+app.use("/commitments", futureCommitmentsRoutes);
 app.use("/settings", settingsRoutes);
 
 app.use(notFoundHandler);

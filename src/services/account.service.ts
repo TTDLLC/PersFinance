@@ -324,6 +324,7 @@ const transactionRows = async (accountId: string, view: RegisterView | "statemen
       categoryId: transactions.categoryId,
       categoryName: categories.name,
       notes: transactions.notes,
+      transferId: transactions.transferId,
       createdAt: transactions.createdAt,
       updatedAt: transactions.updatedAt
     })

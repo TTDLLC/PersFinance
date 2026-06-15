@@ -1,0 +1,36 @@
+<section class="page-header row">
+  <div>
+    <h1>Future Commitments</h1>
+    <p>Expected future activity. Commitments do not affect register balances until entered.</p>
+  </div>
+  <a class="button" href="/commitments/new">New Commitment</a>
+</section>
+
+<form class="filter-bar" method="get" action="/commitments">
+  <label class="checkbox"><input type="checkbox" name="showAll" value="true" <%= showAll ? "checked" : "" %>> Show all history</label>
+  <button type="submit">Update</button>
+</form>
+
+<table>
+  <thead><tr><th>Due</th><th>Name</th><th>Payee</th><th>Account</th><th>Category</th><th>Frequency</th><th>Amount</th><th>Status</th><th></th></tr></thead>
+  <tbody>
+    <% if (!commitments.length) { %><tr><td class="empty-state" colspan="9">No future commitments in this view.</td></tr><% } %>
+    <% commitments.forEach((item) => { %>
+      <% const overdue = item.active && item.nextDueDate <= today && (!item.endDate || item.nextDueDate <= item.endDate); %>
+      <tr class="<%= overdue ? "overdue-row" : "" %>">
+        <td><%= item.nextDueDate %></td>
+        <td><%= item.name %></td>
+        <td><%= item.payeeName || "" %></td>
+        <td><%= item.accountName || "Unassigned" %></td>
+        <td><%= item.categoryName || "" %></td>
+        <td><%= label(item.frequency) %></td>
+        <td class="<%= signedClass(item.amount) %>"><%= accountingMoney(item.amount) %></td>
+        <td><span class="status"><%= overdue ? "Due" : (item.active ? "Active" : "Ended") %></span></td>
+        <td class="actions">
+          <% if (overdue) { %><a href="/commitments/<%= item.id %>/enter">Enter</a><% } %>
+          <a href="/commitments/<%= item.id %>/edit">Edit</a>
+        </td>
+      </tr>
+    <% }) %>
+  </tbody>
+</table>

@@ -8,8 +8,10 @@ A focused internal personal finance register app. This build centers on factual 
 - Statements
 - Reconciliation
 - Current Balance
+- Linked account transfers
+- Future commitments with confirmed register entry
 
-Deferred in this pass: projections, scenarios, recurring transactions, future planning items, transfers, split transactions, snapshots, dashboard totals, and balance caching.
+Deferred in this pass: projections, forecasting charts, budgets, bill-payment tracking, scenarios, future register views, split transactions, snapshots, dashboard totals, and balance caching.
 
 ## Required Software
 
@@ -73,11 +75,14 @@ http://localhost:3000
 ```bash
 npm run test:balance
 npm run test:register
+npm run test:step2
 npm run test:import
 npm run test:large-import
 ```
 
 See [Step 1 CSV Import and Foundation Review](docs/STEP_1_IMPORT_AND_FOUNDATION_REVIEW.md) for the supported CSV format, duplicate and payee behavior, rollback rules, validation plan, and scoped operational findings.
+
+See [Step 2 Architecture](docs/STEP_2_ARCHITECTURE.md) for transfer invariants, commitment separation, and the account-assignment expansion path.
 
 ## Core Balance Rule
 
