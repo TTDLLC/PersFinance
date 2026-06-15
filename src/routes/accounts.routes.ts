@@ -29,6 +29,13 @@ import {
   showTransactionImports
 } from "../controllers/transactionImports.controller.js";
 import { requireAuth } from "../middleware/auth.js";
+import {
+  createAccountTransfer,
+  destroyTransfer,
+  editTransfer,
+  newTransfer,
+  updateAccountTransfer
+} from "../controllers/transfers.controller.js";
 
 export const accountsRoutes = Router();
 
@@ -43,6 +50,11 @@ accountsRoutes.post("/:accountId/imports/confirm", confirmTransactionImport);
 accountsRoutes.post("/:accountId/imports/:batchId/delete", deleteTransactionImportBatch);
 accountsRoutes.get("/:accountId/register/new", newAccountRegisterTransaction);
 accountsRoutes.post("/:accountId/register", createAccountRegisterTransaction);
+accountsRoutes.get("/:accountId/register/transfers/new", newTransfer);
+accountsRoutes.post("/:accountId/register/transfers", createAccountTransfer);
+accountsRoutes.get("/:accountId/register/transfers/:transferId/edit", editTransfer);
+accountsRoutes.post("/:accountId/register/transfers/:transferId", updateAccountTransfer);
+accountsRoutes.post("/:accountId/register/transfers/:transferId/delete", destroyTransfer);
 accountsRoutes.get("/:accountId/register/:transactionId/edit", editAccountRegisterTransaction);
 accountsRoutes.post("/:accountId/register/:transactionId", updateAccountRegisterTransaction);
 accountsRoutes.post("/:accountId/register/:transactionId/void", voidAccountRegisterTransaction);

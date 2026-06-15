@@ -50,7 +50,8 @@ export const listTransactions = async (req: Request, res: Response) => {
       description: transactions.description,
       accountName: accounts.name,
       payeeName: payees.name,
-      categoryName: categories.name
+      categoryName: categories.name,
+      transferId: transactions.transferId
     })
     .from(transactions)
     .innerJoin(accounts, eq(transactions.accountId, accounts.id))
@@ -125,6 +126,10 @@ export const editTransaction = async (req: Request, res: Response) => {
     res.redirect("/transactions");
     return;
   }
+  if (transaction.transferId) {
+    res.redirect(`/accounts/${transaction.accountId}/register/transfers/${transaction.transferId}/edit`);
+    return;
+  }
 
   res.render("layout", {
     title: "Edit Register Transaction",
@@ -144,6 +149,11 @@ export const updateTransaction = async (req: Request, res: Response) => {
 
   if (!editableRegisterStatuses.includes(existing.status as (typeof editableRegisterStatuses)[number]) || existing.statementId) {
     req.flash("error", "Reconciled and void transactions are locked and cannot be edited.");
+    res.redirect("/transactions");
+    return;
+  }
+  if (existing.transferId) {
+    req.flash("error", "Transfers must be edited through the transfer workflow.");
     res.redirect("/transactions");
     return;
   }
@@ -194,6 +204,11 @@ export const voidTransaction = async (req: Request, res: Response) => {
 
   if (!voidableRegisterStatuses.includes(transaction.status as (typeof voidableRegisterStatuses)[number]) || transaction.statementId) {
     req.flash("error", "Reconciled transactions cannot be voided.");
+    res.redirect("/transactions");
+    return;
+  }
+  if (transaction.transferId) {
+    req.flash("error", "Transfers must be deleted through the transfer workflow.");
     res.redirect("/transactions");
     return;
   }

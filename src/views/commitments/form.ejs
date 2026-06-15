@@ -1,0 +1,20 @@
+<section class="page-header"><h1><%= commitment.id ? "Edit Future Commitment" : "New Future Commitment" %></h1></section>
+<form method="post" action="<%= commitment.id ? `/commitments/${commitment.id}` : "/commitments" %>" class="form grid-form">
+  <label>Name<input name="name" value="<%= commitment.name || "" %>" required></label>
+  <label>Payee<select name="payeeId"><option value="">None</option><% payees.forEach((item) => { %><option value="<%= item.id %>" <%= commitment.payeeId === item.id ? "selected" : "" %>><%= item.name %><%= item.active ? "" : " (Archived)" %></option><% }) %></select></label>
+  <label>Category<select name="categoryId"><option value="">None</option><% categories.forEach((item) => { %><option value="<%= item.id %>" <%= commitment.categoryId === item.id ? "selected" : "" %>><%= item.name %><%= item.active ? "" : " (Archived)" %></option><% }) %></select></label>
+  <label>Expected Account<select name="accountId"><option value="">Unassigned</option><% accounts.forEach((item) => { %><option value="<%= item.id %>" <%= commitment.accountId === item.id ? "selected" : "" %>><%= item.name %><%= item.active ? "" : " (Archived)" %></option><% }) %></select></label>
+  <label>Amount<input type="number" step="0.01" name="amount" value="<%= commitment.amount || "" %>" required></label>
+  <label>Frequency<select name="frequency"><% frequencies.forEach((item) => { %><option value="<%= item %>" <%= commitment.frequency === item ? "selected" : "" %>><%= label(item) %></option><% }) %></select></label>
+  <label>Next Due Date<input type="date" name="nextDueDate" value="<%= commitment.nextDueDate || "" %>" required></label>
+  <label>Start Date<input type="date" name="startDate" value="<%= commitment.startDate || "" %>" required></label>
+  <label>End Date<input type="date" name="endDate" value="<%= commitment.endDate || "" %>"></label>
+  <label class="checkbox"><input type="checkbox" name="active" value="true" <%= commitment.active === true || commitment.active === "true" || commitment.active === "on" ? "checked" : "" %>> Active</label>
+  <label class="full">Notes<textarea name="notes"><%= commitment.notes || "" %></textarea></label>
+  <div class="form-actions full"><button type="submit">Save Commitment</button><a href="/commitments">Cancel</a></div>
+</form>
+<% if (commitment.id && commitment.active) { %>
+  <form method="post" action="/commitments/<%= commitment.id %>/archive">
+    <button class="danger" type="submit">End Commitment</button>
+  </form>
+<% } %>

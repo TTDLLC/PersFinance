@@ -1,0 +1,46 @@
+<section class="page-header">
+  <h1><%= transfer.id ? "Edit Transfer" : "New Transfer" %></h1>
+  <p>A transfer creates one linked transaction in each account.</p>
+</section>
+
+<% if (locked) { %>
+  <div class="commitment-alert">This transfer is locked because one or both sides have been reconciled.</div>
+<% } %>
+
+<form method="post" action="<%= transfer.id ? `/accounts/${accountId}/register/transfers/${transfer.id}` : `/accounts/${accountId}/register/transfers` %>" class="form grid-form">
+  <label>Date<input type="date" name="date" value="<%= transfer.date || "" %>" required <%= locked ? "disabled" : "" %>></label>
+  <label>Amount<input type="number" min="0.01" step="0.01" name="amount" value="<%= transfer.amount || "" %>" required <%= locked ? "disabled" : "" %>></label>
+  <label>From Account
+    <select name="sourceAccountId" required <%= locked ? "disabled" : "" %>>
+      <option value="">Select source account</option>
+      <% accounts.forEach((account) => { %>
+        <option value="<%= account.id %>" <%= transfer.sourceAccountId === account.id ? "selected" : "" %>><%= account.name %><%= account.active ? "" : " (Archived)" %></option>
+      <% }) %>
+    </select>
+  </label>
+  <label>To Account
+    <select name="destinationAccountId" required <%= locked ? "disabled" : "" %>>
+      <option value="">Select destination account</option>
+      <% accounts.forEach((account) => { %>
+        <option value="<%= account.id %>" <%= transfer.destinationAccountId === account.id ? "selected" : "" %>><%= account.name %><%= account.active ? "" : " (Archived)" %></option>
+      <% }) %>
+    </select>
+  </label>
+  <label>Status
+    <select name="status" <%= locked ? "disabled" : "" %>>
+      <% ["entered", "pending", "cleared"].forEach((status) => { %>
+        <option value="<%= status %>" <%= transfer.status === status ? "selected" : "" %>><%= label(status) %></option>
+      <% }) %>
+    </select>
+  </label>
+  <label class="full">Notes<textarea name="notes" <%= locked ? "disabled" : "" %>><%= transfer.notes || "" %></textarea></label>
+  <div class="form-actions full">
+    <% if (!locked) { %><button type="submit">Save Transfer</button><% } %>
+    <a href="/accounts/<%= accountId %>/register">Cancel</a>
+  </div>
+</form>
+<% if (transfer.id && !locked) { %>
+  <form method="post" action="/accounts/<%= accountId %>/register/transfers/<%= transfer.id %>/delete">
+    <button class="danger" type="submit">Delete Transfer</button>
+  </form>
+<% } %>

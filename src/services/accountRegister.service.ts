@@ -1,5 +1,8 @@
 import { Accounts } from "./accounts.service.js";
 import type { RegisterView } from "./account.service.js";
+import { and, inArray, isNotNull } from "drizzle-orm";
+import { db } from "../db/index.js";
+import { transactions } from "../db/schema.js";
 
 export const registerStatuses = ["entered", "pending", "cleared", "void"] as const;
 export const editableRegisterStatuses = ["entered", "pending", "cleared"] as const;
@@ -17,6 +20,14 @@ export const getAccountRegister = async (accountId: string, view: RegisterView =
       : view === "all"
         ? await account.getAllTransactions()
         : await account.getActiveTransactions();
+  const transferIds = [...new Set(rows.map((row) => row.transferId).filter((id): id is string => Boolean(id)))];
+  const reconciledTransferRows = transferIds.length
+    ? await db
+        .select({ transferId: transactions.transferId })
+        .from(transactions)
+        .where(andTransferLocked(transferIds))
+    : [];
+  const lockedTransferIds = new Set(reconciledTransferRows.map((row) => row.transferId));
 
   let runningBalance = toNumber(account.getStatementBalance());
   const registerRows = rows.map((row) => {
@@ -26,8 +37,15 @@ export const getAccountRegister = async (accountId: string, view: RegisterView =
       ...row,
       amount,
       balanceAfter: runningBalance,
-      canEdit: !row.statementId && editableRegisterStatuses.includes(row.status as (typeof editableRegisterStatuses)[number]),
-      canVoid: !row.statementId && voidableRegisterStatuses.includes(row.status as (typeof voidableRegisterStatuses)[number])
+      transferLocked: Boolean(row.transferId && lockedTransferIds.has(row.transferId)),
+      canEdit:
+        !row.statementId &&
+        !(row.transferId && lockedTransferIds.has(row.transferId)) &&
+        editableRegisterStatuses.includes(row.status as (typeof editableRegisterStatuses)[number]),
+      canVoid:
+        !row.transferId &&
+        !row.statementId &&
+        voidableRegisterStatuses.includes(row.status as (typeof voidableRegisterStatuses)[number])
     };
   });
 
@@ -40,6 +58,9 @@ export const getAccountRegister = async (accountId: string, view: RegisterView =
     rows: registerRows
   };
 };
+
+const andTransferLocked = (transferIds: string[]) =>
+  and(inArray(transactions.transferId, transferIds), isNotNull(transactions.statementId));
 
 export const findRegisterTransaction = async (accountId: string, transactionId: string) => {
   const account = await Accounts.getAccount(accountId);
