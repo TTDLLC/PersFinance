@@ -8,21 +8,39 @@
       <th>Account</th>
       <th>Type</th>
       <th>Current Balance</th>
+      <th>30-Day Projected Low</th>
       <th>Reconciliation</th>
       <th>Actions</th>
     </tr>
   </thead>
   <tbody>
     <% if (!accounts.length) { %>
-      <tr><td class="empty-state" colspan="5">No accounts yet.</td></tr>
+      <tr><td class="empty-state" colspan="6">No accounts yet.</td></tr>
     <% } %>
     <% accounts.forEach((account) => { %>
+      <% const liabilityAccount = ["credit_card", "loan"].includes(account.type); %>
+      <% const projectedLow = account.projection ? account.projection.projectedLowBalance : null; %>
       <tr>
         <td><%= account.name %></td>
         <td><%= label(account.type) %></td>
         <td class="<%= signedClass(account.currentBalance) %>"><%= money(account.currentBalance) %></td>
+        <td>
+          <% if (account.projection) { %>
+            <span class="<%= liabilityAccount ? "amount" : signedClass(projectedLow) %>">
+              <%= liabilityAccount ? money(Math.abs(Number(projectedLow || 0))) : accountingMoney(projectedLow) %>
+            </span>
+            <% if (account.projection.warningDates.length) { %>
+              <a class="forecast-warning-link" href="/accounts/<%= account.id %>/forecast">Projected below zero</a>
+            <% } %>
+          <% } else { %>
+            <span class="muted">Unavailable</span>
+          <% } %>
+        </td>
         <td><%= account.lastReconciledDate || "Not reconciled yet" %></td>
-        <td class="actions"><a class="small-button" href="/accounts/<%= account.id %>/register">Register</a></td>
+        <td class="actions account-actions">
+          <a class="small-button" href="/accounts/<%= account.id %>/register">Register</a>
+          <a class="small-button" href="/accounts/<%= account.id %>/forecast">Forecast</a>
+        </td>
       </tr>
     <% }) %>
   </tbody>

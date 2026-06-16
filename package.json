@@ -15,6 +15,7 @@
     "test:balance": "npm run build && node dist/scripts/check-balance.js",
     "test:register": "npm run build && node dist/scripts/check-register.js",
     "test:step2": "npm run build && node dist/scripts/check-step2.js",
+    "test:forecast": "npm run build && node dist/scripts/check-forecast.js",
     "test:import": "npm run build && node dist/scripts/check-import.js",
     "test:large-import": "npm run build && node dist/scripts/check-large-import.js"
   },

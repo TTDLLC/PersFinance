@@ -1,14 +1,21 @@
 import type { Request, Response } from "express";
 import { Accounts } from "../services/accounts.service.js";
+import { getAccountProjection } from "../services/projections.service.js";
 
 export const showDashboard = async (_req: Request, res: Response) => {
   const accountRows = await Accounts.list({
     fields: ["id", "name", "type", "currentBalance", "lastReconciledDate"]
   });
+  const accounts = await Promise.all(
+    accountRows.map(async (account) => ({
+      ...account,
+      projection: await getAccountProjection(String(account.id), { windowDays: 30 })
+    }))
+  );
 
   res.render("layout", {
     title: "Dashboard",
     view: "dashboard/index",
-    accounts: accountRows
+    accounts
   });
 };

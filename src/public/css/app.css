@@ -178,6 +178,10 @@ tr:last-child td {
   background: #f7fbfc;
 }
 
+.forecast-summary {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
 .void-row td {
   color: var(--muted);
   text-decoration: line-through;
@@ -627,6 +631,23 @@ summary {
 .commitment-alert a {
   font-weight: 650;
   margin-left: 6px;
+}
+
+.projection-warning {
+  background: #fff0f0;
+  border: 1px solid #e5b3b3;
+  border-radius: 8px;
+  color: #8f2828;
+  margin-bottom: 18px;
+  padding: 12px 14px;
+}
+
+.forecast-warning-link {
+  color: var(--danger);
+  display: block;
+  font-size: 12px;
+  font-weight: 650;
+  margin-top: 4px;
 }
 
 .overdue-row td {

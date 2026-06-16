@@ -21,6 +21,7 @@ import {
   updateAccountRegisterTransaction,
   voidAccountRegisterTransaction
 } from "../controllers/accountRegister.controller.js";
+import { showAccountForecast } from "../controllers/accountForecast.controller.js";
 import {
   confirmTransactionImport,
   deleteTransactionImportBatch,
@@ -43,6 +44,7 @@ accountsRoutes.use(requireAuth);
 accountsRoutes.get("/", listAccounts);
 accountsRoutes.get("/new", newAccount);
 accountsRoutes.post("/", createAccount);
+accountsRoutes.get("/:accountId/forecast", showAccountForecast);
 accountsRoutes.get("/:accountId/register", showAccountRegister);
 accountsRoutes.get("/:accountId/imports", showTransactionImports);
 accountsRoutes.post("/:accountId/imports/preview", handleCsvUpload, previewTransactionImport);

@@ -1,0 +1,82 @@
+<% const liabilityAccount = ["credit_card", "loan"].includes(projection.account.type); %>
+<% const projectionMoney = (value) => liabilityAccount ? money(Math.abs(Number(value || 0))) : accountingMoney(value); %>
+<% const projectionClass = (value) => liabilityAccount ? "amount" : signedClass(value); %>
+
+<section class="page-header row">
+  <div>
+    <h1><%= projection.account.name %> Forecast</h1>
+    <p>Projected from <%= projection.asOfDate %> through <%= projection.windowEndDate %>.</p>
+  </div>
+  <div class="form-actions">
+    <a class="button secondary-button" href="/accounts/<%= projection.account.id %>/register">Register</a>
+    <a class="button secondary-button" href="/accounts/<%= projection.account.id %>/edit">Account Settings</a>
+  </div>
+</section>
+
+<form class="filter-bar embedded-filter" method="get" action="/accounts/<%= projection.account.id %>/forecast">
+  <label>Window
+    <select name="window">
+      <% projectionWindows.forEach((windowDays) => { %>
+        <option value="<%= windowDays %>" <%= projection.windowDays === windowDays ? "selected" : "" %>><%= windowDays %> days</option>
+      <% }) %>
+    </select>
+  </label>
+  <button type="submit">Update</button>
+</form>
+
+<section class="metric-grid forecast-summary">
+  <div class="metric-card">
+    <span>Projection Start Balance</span>
+    <strong class="<%= projectionClass(projection.projectionStartBalance) %>"><%= projectionMoney(projection.projectionStartBalance) %></strong>
+  </div>
+  <div class="metric-card">
+    <span>Projected Ending Balance</span>
+    <strong class="<%= projectionClass(projection.projectedEndingBalance) %>"><%= projectionMoney(projection.projectedEndingBalance) %></strong>
+  </div>
+  <div class="metric-card">
+    <span>Projected Low Balance</span>
+    <strong class="<%= projectionClass(projection.projectedLowBalance) %>"><%= projectionMoney(projection.projectedLowBalance) %></strong>
+  </div>
+  <div class="metric-card">
+    <span>Projected High Balance</span>
+    <strong class="<%= projectionClass(projection.projectedHighBalance) %>"><%= projectionMoney(projection.projectedHighBalance) %></strong>
+  </div>
+</section>
+
+<% if (projection.warningDates.length) { %>
+  <div class="projection-warning" role="status">
+    Projected below zero on <strong><%= projection.warningDates.join(", ") %></strong>.
+  </div>
+<% } %>
+
+<section class="table-panel">
+  <table>
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th>Source</th>
+        <th>Item</th>
+        <th>Payee</th>
+        <th>Category</th>
+        <th>Amount</th>
+        <th>Projected Balance</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% if (!projection.items.length) { %>
+        <tr><td class="empty-state" colspan="7">No projected items in this window.</td></tr>
+      <% } %>
+      <% projection.items.forEach((item) => { %>
+        <tr class="future-row">
+          <td><%= item.date %></td>
+          <td><span class="status"><%= label(item.source) %></span></td>
+          <td><%= item.name %></td>
+          <td><%= item.payeeName || "" %></td>
+          <td><%= item.categoryName || "" %></td>
+          <td class="<%= signedClass(item.amount) %>"><%= accountingMoney(item.amount) %></td>
+          <td class="<%= projectionClass(item.runningBalance) %>"><%= projectionMoney(item.runningBalance) %></td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+</section>
