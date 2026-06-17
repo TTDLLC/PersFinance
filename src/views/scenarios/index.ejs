@@ -1,0 +1,11 @@
+<%- include('../../partials/nav', {title: title}) %>
+
+<h1>Scenarios</h1>
+<p class="muted">Scenarios listing placeholder.</p>
+<ul>
+  <% (scenarios || []).forEach(function (s) { %>
+    <li><a href="/scenarios/<%= s.id %>"><%= s.name %></a> — active: <%= s.active ? 'yes' : 'no' %>, accounts: <%= s.accountCount %></li>
+  <% }) %>
+</ul>
+
+<p><a class="button" href="/scenarios/new">New Scenario</a></p>

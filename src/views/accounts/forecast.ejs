@@ -5,7 +5,7 @@
 <section class="page-header row">
   <div>
     <h1><%= projection.account.name %> Forecast</h1>
-    <p>Projected from <%= projection.asOfDate %> through <%= projection.windowEndDate %>.</p>
+    <p>Projected from <%= projection.asOfDate %> through <%= projection.windowEndDate %>. <%= projection.mode === 'scenario' ? 'Scenario overlay active.' : '' %></p>
   </div>
   <div class="form-actions">
     <a class="button secondary-button" href="/accounts/<%= projection.account.id %>/register">Register</a>
@@ -21,6 +21,16 @@
       <% }) %>
     </select>
   </label>
+  <% if (scenarioOptions && scenarioOptions.length) { %>
+    <label>Scenarios
+      <select name="scenarioIds" multiple size="<%= Math.min(scenarioOptions.length, 6) %>">
+        <% scenarioOptions.forEach((scenario) => { %>
+          <option value="<%= scenario.id %>" <%= (selectedScenarioIds || []).includes(scenario.id) ? "selected" : "" %>><%= scenario.name %> <%= scenario.active ? "" : "(archived)" %></option>
+        <% }) %>
+      </select>
+    </label>
+    <span class="hint">Hold Cmd/Ctrl to select multiple scenarios.</span>
+  <% } %>
   <button type="submit">Update</button>
 </form>
 

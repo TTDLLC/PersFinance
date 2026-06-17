@@ -1,4 +1,7 @@
 import type { Request, Response } from "express";
+import { eq } from "drizzle-orm";
+import { db } from "../db/index.js";
+import { scenarioAccounts, scenarios } from "../db/schema.js";
 import { getAccountProjection, projectionWindows } from "../services/projections.service.js";
 
 const selectedWindowDays = (value: unknown) => {
@@ -6,9 +9,19 @@ const selectedWindowDays = (value: unknown) => {
   return projectionWindows.includes(option as (typeof projectionWindows)[number]) ? option : 30;
 };
 
+const selectedScenarioIds = (value: unknown) => {
+  const ids = Array.isArray(value) ? value : value ? [value] : [];
+  return ids.filter((id): id is string => typeof id === "string" && id.length > 0);
+};
+
 export const showAccountForecast = async (req: Request, res: Response) => {
-  const projection = await getAccountProjection(req.params.accountId, {
-    windowDays: selectedWindowDays(req.query.window)
+  const accountId = req.params.accountId;
+  const windowDays = selectedWindowDays(req.query.window);
+  const scenarioIds = selectedScenarioIds(req.query.scenarioIds);
+
+  const projection = await getAccountProjection(accountId, {
+    windowDays,
+    scenarioIds
   });
 
   if (!projection) {
@@ -17,10 +30,23 @@ export const showAccountForecast = async (req: Request, res: Response) => {
     return;
   }
 
+  const scenarioOptions = await db
+    .select({
+      id: scenarios.id,
+      name: scenarios.name,
+      active: scenarios.active
+    })
+    .from(scenarios)
+    .innerJoin(scenarioAccounts, eq(scenarioAccounts.scenarioId, scenarios.id))
+    .where(eq(scenarioAccounts.accountId, accountId))
+    .orderBy(scenarios.name);
+
   res.render("layout", {
     title: `${projection.account.name} Forecast`,
     view: "accounts/forecast",
     projection,
-    projectionWindows
+    projectionWindows,
+    scenarioOptions,
+    selectedScenarioIds: scenarioIds
   });
 };

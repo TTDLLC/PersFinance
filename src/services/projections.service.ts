@@ -1,12 +1,14 @@
 import { and, asc, eq, gt, isNull, lte, ne } from "drizzle-orm";
 import { db } from "../db/index.js";
-import { accounts, categories, futureCommitments, payees, transactions } from "../db/schema.js";
+import { accounts, categories, futureCommitments, payees, scenarioAccounts, scenarioAdjustments, scenarios, transactions } from "../db/schema.js";
 import { advanceDueDate, isoToday } from "./futureCommitments.service.js";
+import { createScenarioAdjustment, deleteScenarioAdjustment, getScenario, listScenarioAdjustments } from "./scenarios.service.js";
+import { updateScenarioAdjustment } from "./scenarios.service.js";
 
 export const projectionWindows = [30, 60, 90] as const;
 export type ProjectionWindowDays = (typeof projectionWindows)[number];
 
-export type ProjectionItemSource = "future_commitment" | "transfer" | "future_transaction";
+export type ProjectionItemSource = "future_commitment" | "transfer" | "future_transaction" | "scenario_adjustment";
 
 export type ProjectionItem = {
   id: string;
@@ -21,6 +23,7 @@ export type ProjectionItem = {
   transactionId: string | null;
   transferId: string | null;
   commitmentId: string | null;
+  scenarioId: string | null;
 };
 
 export type AccountProjection = {
@@ -37,12 +40,15 @@ export type AccountProjection = {
   projectedLowBalance: string;
   projectedHighBalance: string;
   warningDates: string[];
+  mode: "baseline" | "scenario";
+  selectedScenarioIds: string[];
   items: ProjectionItem[];
 };
 
 type ProjectionInput = {
   windowDays?: number;
   asOfDate?: string;
+  scenarioIds?: string[];
 };
 
 type RawProjectionItem = Omit<ProjectionItem, "amount" | "runningBalance"> & {
@@ -52,7 +58,8 @@ type RawProjectionItem = Omit<ProjectionItem, "amount" | "runningBalance"> & {
 const sourceOrder: Record<ProjectionItemSource, number> = {
   future_commitment: 1,
   transfer: 2,
-  future_transaction: 3
+  future_transaction: 3,
+  scenario_adjustment: 4
 };
 
 const assetAccountTypes = new Set<typeof accounts.$inferSelect.type>(["checking", "savings", "cash"]);
@@ -136,7 +143,8 @@ const getFutureTransactionItems = async (accountId: string, asOfDate: string, wi
     status: row.status,
     transactionId: row.id,
     transferId: row.transferId,
-    commitmentId: null
+    commitmentId: null,
+    scenarioId: null
   }));
 };
 
@@ -188,7 +196,8 @@ const getFutureCommitmentItems = async (accountId: string, asOfDate: string, win
         status: null,
         transactionId: null,
         transferId: null,
-        commitmentId: row.id
+        commitmentId: row.id,
+        scenarioId: null
       });
 
       const nextDueDate = advanceDueDate(occurrenceDate, row.frequency);
@@ -198,6 +207,57 @@ const getFutureCommitmentItems = async (accountId: string, asOfDate: string, win
   }
 
   return items;
+};
+
+const getScenarioAdjustmentItems = async (accountId: string, asOfDate: string, windowEndDate: string, scenarioIds: string[]): Promise<RawProjectionItem[]> => {
+  if (!scenarioIds.length) return [];
+
+  const idsForAccount = await db
+    .select({ scenarioId: scenarioAccounts.scenarioId })
+    .from(scenarioAccounts)
+    .where(eq(scenarioAccounts.accountId, accountId));
+
+  const allowedScenarioIds = new Set(idsForAccount.map((row) => row.scenarioId));
+  const filteredScenarioIds = scenarioIds.filter((scenarioId) => allowedScenarioIds.has(scenarioId));
+  if (!filteredScenarioIds.length) return [];
+
+  const rows = await db
+    .select({
+      id: scenarioAdjustments.id,
+      scenarioId: scenarioAdjustments.scenarioId,
+      date: scenarioAdjustments.date,
+      amount: scenarioAdjustments.amount,
+      description: scenarioAdjustments.description,
+      payeeName: payees.name,
+      categoryName: categories.name
+    })
+    .from(scenarioAdjustments)
+    .leftJoin(payees, eq(scenarioAdjustments.payeeId, payees.id))
+    .leftJoin(categories, eq(scenarioAdjustments.categoryId, categories.id))
+    .where(
+      and(
+        eq(scenarioAdjustments.accountId, accountId),
+        lte(scenarioAdjustments.date, windowEndDate),
+        gt(scenarioAdjustments.date, asOfDate)
+      )
+    );
+
+  return rows
+    .filter((row) => filteredScenarioIds.includes(row.scenarioId))
+    .map((row) => ({
+      id: `${row.scenarioId}:${row.id}`,
+      source: "scenario_adjustment" as ProjectionItemSource,
+      date: row.date,
+      amountCents: toCents(row.amount),
+      name: row.description ?? (row.payeeName ?? "Scenario adjustment"),
+      payeeName: row.payeeName,
+      categoryName: row.categoryName,
+      status: null,
+      transactionId: null,
+      transferId: null,
+      commitmentId: null,
+      scenarioId: row.scenarioId
+    }));
 };
 
 export const getAccountProjection = async (accountId: string, input: ProjectionInput = {}): Promise<AccountProjection | null> => {
@@ -217,11 +277,15 @@ export const getAccountProjection = async (accountId: string, input: ProjectionI
   const asOfDate = input.asOfDate ?? isoToday();
   const windowDays = normalizeWindowDays(input.windowDays);
   const windowEndDate = addDays(asOfDate, windowDays);
+  const selectedScenarioIds = (input.scenarioIds ?? []).filter(Boolean);
   const projectionStartBalanceCents = await getProjectionStartBalanceCents(account.id, account.statementChainBalance, asOfDate);
-  const items = [
+  const baselineItems = [
     ...(await getFutureCommitmentItems(account.id, asOfDate, windowEndDate)),
     ...(await getFutureTransactionItems(account.id, asOfDate, windowEndDate))
-  ].sort(compareItems);
+  ];
+
+  const scenarioItems = await getScenarioAdjustmentItems(account.id, asOfDate, windowEndDate, selectedScenarioIds);
+  const allItems = [...baselineItems, ...scenarioItems].sort(compareItems);
 
   let runningBalanceCents = projectionStartBalanceCents;
   let projectedLowBalanceCents = projectionStartBalanceCents;
@@ -229,7 +293,7 @@ export const getAccountProjection = async (accountId: string, input: ProjectionI
   const warningDates = new Set<string>();
   const warnOnNegativeBalance = assetAccountTypes.has(account.type);
 
-  const projectedItems = items.map((item) => {
+  const projectedItems = allItems.map((item) => {
     runningBalanceCents += item.amountCents;
     projectedLowBalanceCents = Math.min(projectedLowBalanceCents, runningBalanceCents);
     projectedHighBalanceCents = Math.max(projectedHighBalanceCents, runningBalanceCents);
@@ -247,7 +311,8 @@ export const getAccountProjection = async (accountId: string, input: ProjectionI
       status: item.status,
       transactionId: item.transactionId,
       transferId: item.transferId,
-      commitmentId: item.commitmentId
+      commitmentId: item.commitmentId,
+      scenarioId: item.scenarioId
     };
   });
 
@@ -265,6 +330,8 @@ export const getAccountProjection = async (accountId: string, input: ProjectionI
     projectedLowBalance: toMoney(projectedLowBalanceCents),
     projectedHighBalance: toMoney(projectedHighBalanceCents),
     warningDates: [...warningDates],
+    mode: selectedScenarioIds.length ? "scenario" : "baseline",
+    selectedScenarioIds,
     items: projectedItems
   };
 };

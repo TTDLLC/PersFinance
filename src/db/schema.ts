@@ -189,6 +189,53 @@ export const transactions = pgTable(
   })
 );
 
+export const scenarios = pgTable(
+  "scenarios",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: text("name").notNull(),
+    description: text("description"),
+    notes: text("notes"),
+    active: boolean("active").notNull().default(true),
+    ...timestamps
+  },
+  (table) => ({
+    activeNameIdx: uniqueIndex("scenarios_active_name_unique").on(table.name, table.active)
+  })
+);
+
+export const scenarioAccounts = pgTable(
+  "scenario_accounts",
+  {
+    scenarioId: uuid("scenario_id").notNull().references(() => scenarios.id, { onDelete: "cascade" }),
+    accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" })
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.scenarioId, table.accountId] })
+  })
+);
+
+export const scenarioAdjustments = pgTable(
+  "scenario_adjustments",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    scenarioId: uuid("scenario_id").notNull().references(() => scenarios.id, { onDelete: "cascade" }),
+    accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+    date: date("date").notNull(),
+    amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
+    payeeId: uuid("payee_id").references(() => payees.id, { onDelete: "set null" }),
+    categoryId: uuid("category_id").references(() => categories.id, { onDelete: "set null" }),
+    description: text("description"),
+    notes: text("notes"),
+    ...timestamps
+  },
+  (table) => ({
+    accountScenarioIdx: index("scenario_adjustments_account_scenario_idx").on(table.scenarioId, table.accountId),
+    accountDateIdx: index("scenario_adjustments_account_date_idx").on(table.accountId, table.date),
+    amountCheck: check("scenario_adjustments_amount_check", sql`${table.amount} <> 0`)
+  })
+);
+
 export const futureCommitments = pgTable(
   "future_commitments",
   {
