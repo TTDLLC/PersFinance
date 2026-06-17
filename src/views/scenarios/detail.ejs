@@ -1,6 +1,13 @@
-<%- include('../../partials/nav', {title: title}) %>
-
-<h1><%= typeof scenario !== 'undefined' && scenario && scenario.id ? 'Scenario Details' : 'Scenario' %></h1>
+<section class="page-header row">
+  <div>
+    <h1><%= scenario.name %></h1>
+    <p><%= scenario.active ? "Active scenario overlay" : "Archived scenario" %></p>
+  </div>
+  <div class="form-actions">
+    <a class="button secondary-button" href="/scenarios">Back to Scenarios</a>
+    <a class="button" href="/scenarios/<%= scenario.id %>/adjustments/new">New Adjustment</a>
+  </div>
+</section>
 
 <div class="detail-layout">
   <div>
@@ -15,12 +22,22 @@
         <dd><%= scenario && scenario.notes ? scenario.notes : '—' %></dd>
         <dt>Status</dt>
         <dd><%= scenario && scenario.active ? 'Active' : 'Archived' %></dd>
+        <dt>Accounts</dt>
+        <dd>
+          <% if (!accounts || !accounts.length) { %>
+            <span class="muted">No linked accounts.</span>
+          <% } else { %>
+            <%= accounts.map((account) => account.name).join(", ") %>
+          <% } %>
+        </dd>
       </dl>
       <div class="form-actions">
         <a class="button" href="/scenarios/<%= scenario.id %>/edit">Edit Details</a>
-        <form method="post" action="/scenarios/<%= scenario.id %>/archive" class="inline-form">
-          <button type="submit" class="secondary-button">Archive</button>
-        </form>
+        <% if (scenario.active) { %>
+          <form method="post" action="/scenarios/<%= scenario.id %>/archive" class="inline-form">
+            <button type="submit" class="secondary-button">Archive</button>
+          </form>
+        <% } %>
       </div>
     </section>
   </div>
@@ -36,32 +53,42 @@
             <th>Description</th>
             <th>Category</th>
             <th>Payee</th>
+            <th class="actions">Actions</th>
           </tr>
         </thead>
         <tbody>
           <% if (!adjustments || !adjustments.length) { %>
             <tr>
-              <td class="empty-state" colspan="6">No adjustments yet.</td>
+              <td class="empty-state" colspan="7">No adjustments yet.</td>
             </tr>
           <% } else { %>
             <% adjustments.forEach((adjustment) => { %>
               <tr>
                 <td><%= adjustment.date %></td>
-                <td><%= adjustment.accountId %></td>
+                <td><%= adjustment.accountName || adjustment.accountId %></td>
                 <td class="<%= signedClass(adjustment.amount) %>"><%= accountingMoney(adjustment.amount) %></td>
                 <td><%= adjustment.description || '' %></td>
                 <td><%= adjustment.categoryName || '' %></td>
                 <td><%= adjustment.payeeName || '' %></td>
+                <td class="actions">
+                  <div class="account-actions">
+                    <a class="small-button" href="/scenarios/<%= scenario.id %>/adjustments/<%= adjustment.id %>/edit">Edit</a>
+                    <form method="post" action="/scenarios/<%= scenario.id %>/adjustments/<%= adjustment.id %>/delete" onsubmit="return confirm('Delete this scenario adjustment?');">
+                      <button class="small-button" type="submit">Delete</button>
+                    </form>
+                  </div>
+                </td>
               </tr>
             <% }) %>
           <% } %>
         </tbody>
       </table>
-      <p>
+      <p class="form-actions">
         <a class="button" href="/scenarios/<%= scenario.id %>/adjustments/new">New Adjustment</a>
+        <% if (accounts && accounts.length) { %>
+          <a class="button secondary-button" href="/accounts/<%= accounts[0].id %>/forecast">Back to Forecast</a>
+        <% } %>
       </p>
     </section>
   </div>
 </div>
-
-<p><a class="button secondary-button" href="/scenarios">Back to Scenarios</a></p>

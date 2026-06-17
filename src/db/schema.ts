@@ -200,7 +200,7 @@ export const scenarios = pgTable(
     ...timestamps
   },
   (table) => ({
-    activeNameIdx: uniqueIndex("scenarios_active_name_unique").on(table.name, table.active)
+    activeNameIdx: uniqueIndex("scenarios_active_name_unique").on(sql`lower(${table.name})`).where(sql`${table.active} = true`)
   })
 );
 

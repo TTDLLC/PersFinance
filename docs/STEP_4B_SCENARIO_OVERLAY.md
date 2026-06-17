@@ -23,9 +23,11 @@ The forecast page now accepts multiple selected scenario IDs. When none are sele
 
 When scenarios are selected:
 - baseline items are unchanged
+- only active scenarios linked to the selected account are accepted
 - scenario adjustments for the selected account are merged on top
 - scenario adjustments appear in the projection table
 - warning balances and low/high summaries include scenario amounts
+- archived scenario IDs are ignored, including when passed manually in query params
 
 ## Same-Day Ordering
 
@@ -40,7 +42,7 @@ This preserves the existing financial behavior while only adding scenario effect
 
 ## Multi-Account Scoping
 
-Only scenarios linked to the projected account through scenario_accounts are eligible for selection. The controller loads options from that intersection.
+Only active scenarios linked to the projected account through scenario_accounts are eligible for selection. The controller loads options from that intersection, and the projection service re-checks active/account eligibility before applying any scenario adjustments.
 
 ## User Flow
 
@@ -48,8 +50,13 @@ Only scenarios linked to the projected account through scenario_accounts are eli
 2. If the account has linked scenarios, a scenario multi-select appears.
 3. Select one or more scenarios and submit.
 4. The page reloads with merged scenario items.
-5. Clear all selected scenarios to return to baseline.
+5. The page shows "Scenario overlay active" only for accepted active scenarios.
+6. Clear all selected scenarios to return to baseline.
 
 ## Relationship to Other Steps
 
 Step 4B depends on Step 4A tables and services. It does not modify register, import, transfer, or commitment behavior.
+
+## Validation
+
+`npm run test:forecast` preserves the Step 3 baseline forecast guarantees. `npm run test:step4-scenarios` exercises active-only selection, multi-scenario stacking, archived scenario rejection, and register/statement/account immutability.

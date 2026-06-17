@@ -100,6 +100,7 @@ a:hover {
 
 .metric-card,
 .panel,
+.card,
 .auth-panel {
   background: var(--panel);
   border: 1px solid var(--line);
@@ -217,6 +218,11 @@ tr:last-child td {
 
 .muted {
   color: var(--muted);
+}
+
+.hint {
+  color: var(--muted);
+  font-size: 13px;
 }
 
 .actions {
@@ -339,6 +345,22 @@ textarea {
   gap: 8px;
 }
 
+.checkbox-label {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+}
+
+.checkbox-label input {
+  width: auto;
+}
+
+.checkbox-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
+}
+
 .checkbox input {
   width: auto;
 }
@@ -373,6 +395,39 @@ textarea {
   gap: 14px;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   margin-top: 12px;
+}
+
+.detail-layout {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: minmax(240px, 320px) 1fr;
+}
+
+.card h2 {
+  font-size: 18px;
+  margin: 0 0 12px;
+}
+
+.card dl {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+
+.card dt {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.card dd {
+  margin: 0;
+}
+
+.inline-form {
+  display: inline;
+  margin: 0;
 }
 
 details {
@@ -642,6 +697,15 @@ summary {
   padding: 12px 14px;
 }
 
+.scenario-overlay-banner {
+  background: #e8f5ee;
+  border: 1px solid #b7dfc7;
+  border-radius: 8px;
+  color: #155d35;
+  margin-bottom: 18px;
+  padding: 12px 14px;
+}
+
 .forecast-warning-link {
   color: var(--danger);
   display: block;
@@ -691,5 +755,9 @@ summary {
 
   .reconciliation-actions {
     justify-content: flex-start;
+  }
+
+  .detail-layout {
+    grid-template-columns: 1fr;
   }
 }

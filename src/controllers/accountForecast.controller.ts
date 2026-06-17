@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { scenarioAccounts, scenarios } from "../db/schema.js";
 import { getAccountProjection, projectionWindows } from "../services/projections.service.js";
@@ -38,7 +38,7 @@ export const showAccountForecast = async (req: Request, res: Response) => {
     })
     .from(scenarios)
     .innerJoin(scenarioAccounts, eq(scenarioAccounts.scenarioId, scenarios.id))
-    .where(eq(scenarioAccounts.accountId, accountId))
+    .where(and(eq(scenarios.active, true), eq(scenarioAccounts.accountId, accountId)))
     .orderBy(scenarios.name);
 
   res.render("layout", {
@@ -47,6 +47,6 @@ export const showAccountForecast = async (req: Request, res: Response) => {
     projection,
     projectionWindows,
     scenarioOptions,
-    selectedScenarioIds: scenarioIds
+    selectedScenarioIds: projection.selectedScenarioIds
   });
 };

@@ -4,6 +4,7 @@ import {
   count,
   desc,
   eq,
+  inArray,
   SQL
 } from "drizzle-orm";
 import { db } from "../db/index.js";
@@ -20,6 +21,46 @@ export type Scenario = typeof scenarios.$inferSelect;
 export type NewScenario = typeof scenarios.$inferInsert;
 export type ScenarioAdjustment = typeof scenarioAdjustments.$inferSelect;
 export type NewScenarioAdjustment = typeof scenarioAdjustments.$inferInsert;
+
+const compactUnique = (values: string[] | undefined) => [...new Set((values ?? []).filter(Boolean))];
+
+const nullableText = (value: unknown) => {
+  const trimmed = String(value ?? "").trim();
+  return trimmed.length ? trimmed : null;
+};
+
+const requireScenario = async (scenarioId: string) => {
+  const scenario = await getScenario(scenarioId);
+  if (!scenario) throw new Error("Scenario not found.");
+  return scenario;
+};
+
+const requireScenarioAccount = async (scenarioId: string, accountId: string) => {
+  const [link] = await db
+    .select({ accountId: scenarioAccounts.accountId })
+    .from(scenarioAccounts)
+    .where(and(eq(scenarioAccounts.scenarioId, scenarioId), eq(scenarioAccounts.accountId, accountId)))
+    .limit(1);
+  if (!link) throw new Error("Adjustment account must be linked to the scenario.");
+};
+
+const normalizeAdjustmentInput = (input: NewScenarioAdjustment | Partial<NewScenarioAdjustment>) => {
+  const normalized = {
+    ...input,
+    payeeId: nullableText(input.payeeId),
+    categoryId: nullableText(input.categoryId),
+    description: nullableText(input.description),
+    notes: nullableText(input.notes)
+  };
+  if ("date" in input && !nullableText(input.date)) throw new Error("Adjustment date is required.");
+  if ("amount" in input) {
+    const amount = nullableText(input.amount);
+    if (!amount) throw new Error("Adjustment amount is required.");
+    if (Number(amount) === 0) throw new Error("Adjustment amount must be non-zero.");
+    normalized.amount = amount;
+  }
+  return normalized;
+};
 
 export const listScenarios = async (options?: { includeInactive?: boolean }) => {
   const baseWhere: SQL[] = [];
@@ -39,25 +80,33 @@ export const listScenarios = async (options?: { includeInactive?: boolean }) => 
 
 export const getScenario = async (id: string) => {
   const [scenario] = await db.select().from(scenarios).where(eq(scenarios.id, id)).limit(1);
-  return scenario ?? null;
+  if (!scenario) return null;
+  const links = await db
+    .select({ accountId: scenarioAccounts.accountId })
+    .from(scenarioAccounts)
+    .where(eq(scenarioAccounts.scenarioId, id))
+    .orderBy(scenarioAccounts.accountId);
+  return { ...scenario, accountIds: links.map((link) => link.accountId) };
 };
 
 export const createScenario = async (input: NewScenario & { accountIds?: string[] }) => {
-  const { accountIds = [], ...scenarioData } = input;
+  const { accountIds, ...scenarioData } = input;
+  const linkedAccountIds = compactUnique(accountIds);
 
   const created = await db.transaction(async (tx) => {
-    const [scenario] = await tx.insert(scenarios).values({ ...scenarioData, active: true }).returning();
-    if (accountIds.length) {
-      await tx.insert(scenarioAccounts).values(accountIds.map((accountId) => ({ scenarioId: scenario.id, accountId })));
+    const [scenario] = await tx.insert(scenarios).values({ ...scenarioData, active: scenarioData.active ?? true }).returning();
+    if (linkedAccountIds.length) {
+      await tx.insert(scenarioAccounts).values(linkedAccountIds.map((accountId) => ({ scenarioId: scenario.id, accountId })));
     }
     return scenario;
   });
 
-  return { ...created, accountIds };
+  return { ...created, accountIds: linkedAccountIds };
 };
 
 export const updateScenario = async (id: string, input: Partial<NewScenario> & { accountIds?: string[] }) => {
   const { accountIds, ...scenarioData } = input;
+  const linkedAccountIds = accountIds === undefined ? undefined : compactUnique(accountIds);
 
   const updated = await db.transaction(async (tx) => {
     const [scenario] = await tx
@@ -68,15 +117,15 @@ export const updateScenario = async (id: string, input: Partial<NewScenario> & {
 
     if (accountIds !== undefined) {
       await tx.delete(scenarioAccounts).where(eq(scenarioAccounts.scenarioId, id));
-      if (accountIds.length) {
-        await tx.insert(scenarioAccounts).values(accountIds.map((accountId) => ({ scenarioId: scenario.id, accountId })));
+      if (linkedAccountIds?.length) {
+        await tx.insert(scenarioAccounts).values(linkedAccountIds.map((accountId) => ({ scenarioId: scenario.id, accountId })));
       }
     }
 
     return scenario;
   });
 
-  return { ...updated, accountIds: accountIds ?? [] };
+  return { ...updated, accountIds: linkedAccountIds ?? [] };
 };
 
 export const archiveScenario = async (id: string) => {
@@ -101,37 +150,94 @@ export const listScenarioAdjustments = async (scenarioId: string, options?: { ac
       id: scenarioAdjustments.id,
       scenarioId: scenarioAdjustments.scenarioId,
       accountId: scenarioAdjustments.accountId,
+      accountName: accounts.name,
       date: scenarioAdjustments.date,
       amount: scenarioAdjustments.amount,
       payeeId: scenarioAdjustments.payeeId,
       categoryId: scenarioAdjustments.categoryId,
       description: scenarioAdjustments.description,
       notes: scenarioAdjustments.notes,
+      payeeName: payees.name,
+      categoryName: categories.name,
       createdAt: scenarioAdjustments.createdAt,
       updatedAt: scenarioAdjustments.updatedAt
     })
     .from(scenarioAdjustments)
+    .innerJoin(accounts, eq(scenarioAdjustments.accountId, accounts.id))
     .leftJoin(payees, eq(scenarioAdjustments.payeeId, payees.id))
     .leftJoin(categories, eq(scenarioAdjustments.categoryId, categories.id))
     .where(and(...conditions))
     .orderBy(asc(scenarioAdjustments.date), asc(scenarioAdjustments.createdAt));
 };
 
-export const createScenarioAdjustment = async (input: NewScenarioAdjustment) =>
+export const getScenarioAccountOptions = async (scenarioId: string) =>
   db
+    .select({
+      id: accounts.id,
+      name: accounts.name,
+      type: accounts.type
+    })
+    .from(scenarioAccounts)
+    .innerJoin(accounts, eq(scenarioAccounts.accountId, accounts.id))
+    .where(and(eq(scenarioAccounts.scenarioId, scenarioId), eq(accounts.active, true)))
+    .orderBy(accounts.name);
+
+export const getScenarioAdjustment = async (scenarioId: string, adjustmentId: string) => {
+  const [adjustment] = await db
+    .select()
+    .from(scenarioAdjustments)
+    .where(and(eq(scenarioAdjustments.scenarioId, scenarioId), eq(scenarioAdjustments.id, adjustmentId)))
+    .limit(1);
+  return adjustment ?? null;
+};
+
+export const createScenarioAdjustment = async (input: NewScenarioAdjustment) => {
+  await requireScenario(input.scenarioId);
+  if (!input.accountId) throw new Error("Adjustment account is required.");
+  await requireScenarioAccount(input.scenarioId, input.accountId);
+  const values = normalizeAdjustmentInput(input) as NewScenarioAdjustment;
+  return db
     .insert(scenarioAdjustments)
-    .values(input)
+    .values(values)
     .returning();
+};
 
-export const updateScenarioAdjustment = async (id: string, input: Partial<NewScenarioAdjustment>) =>
-  db
+export const updateScenarioAdjustment = async (scenarioId: string, id: string, input: Partial<NewScenarioAdjustment>) => {
+  await requireScenario(scenarioId);
+  const existing = await getScenarioAdjustment(scenarioId, id);
+  if (!existing) throw new Error("Adjustment not found.");
+  const accountId = input.accountId ?? existing.accountId;
+  if (!accountId) throw new Error("Adjustment account is required.");
+  await requireScenarioAccount(scenarioId, accountId);
+  const values = normalizeAdjustmentInput(input) as Partial<NewScenarioAdjustment>;
+  return db
     .update(scenarioAdjustments)
-    .set({ ...input, updatedAt: new Date() })
-    .where(eq(scenarioAdjustments.id, id))
+    .set({ ...values, updatedAt: new Date() })
+    .where(and(eq(scenarioAdjustments.scenarioId, scenarioId), eq(scenarioAdjustments.id, id)))
     .returning();
+};
 
-export const deleteScenarioAdjustment = async (id: string) =>
+export const deleteScenarioAdjustment = async (scenarioId: string, id: string) =>
   db
     .delete(scenarioAdjustments)
-    .where(eq(scenarioAdjustments.id, id))
+    .where(and(eq(scenarioAdjustments.scenarioId, scenarioId), eq(scenarioAdjustments.id, id)))
     .returning();
+
+export const listActiveScenarioIdsForAccount = async (accountId: string, scenarioIds: string[]) => {
+  const selectedIds = compactUnique(scenarioIds);
+  if (!selectedIds.length) return [];
+  const rows = await db
+    .select({ id: scenarios.id })
+    .from(scenarios)
+    .innerJoin(scenarioAccounts, eq(scenarioAccounts.scenarioId, scenarios.id))
+    .where(
+      and(
+        eq(scenarios.active, true),
+        eq(scenarioAccounts.accountId, accountId),
+        inArray(scenarios.id, selectedIds)
+      )
+    )
+    .orderBy(scenarios.name);
+  const accepted = new Set(rows.map((row) => row.id));
+  return selectedIds.filter((id) => accepted.has(id));
+};

@@ -14,6 +14,7 @@ import { authRoutes } from "./routes/auth.routes.js";
 import { categoriesRoutes } from "./routes/categories.routes.js";
 import { dashboardRoutes } from "./routes/dashboard.routes.js";
 import { payeesRoutes } from "./routes/payees.routes.js";
+import { scenariosRoutes } from "./routes/scenarios.routes.js";
 import { settingsRoutes } from "./routes/settings.routes.js";
 import { transactionsRoutes } from "./routes/transactions.routes.js";
 import { futureCommitmentsRoutes } from "./routes/futureCommitments.routes.js";
@@ -78,6 +79,7 @@ app.use("/categories", categoriesRoutes);
 app.use("/payees", payeesRoutes);
 app.use("/transactions", transactionsRoutes);
 app.use("/commitments", futureCommitmentsRoutes);
+app.use("/scenarios", scenariosRoutes);
 app.use("/settings", settingsRoutes);
 
 app.use(notFoundHandler);

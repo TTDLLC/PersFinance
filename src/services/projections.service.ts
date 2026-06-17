@@ -1,9 +1,8 @@
-import { and, asc, eq, gt, isNull, lte, ne } from "drizzle-orm";
+import { and, asc, eq, gt, inArray, isNull, lte, ne } from "drizzle-orm";
 import { db } from "../db/index.js";
-import { accounts, categories, futureCommitments, payees, scenarioAccounts, scenarioAdjustments, scenarios, transactions } from "../db/schema.js";
+import { accounts, categories, futureCommitments, payees, scenarioAdjustments, transactions } from "../db/schema.js";
 import { advanceDueDate, isoToday } from "./futureCommitments.service.js";
-import { createScenarioAdjustment, deleteScenarioAdjustment, getScenario, listScenarioAdjustments } from "./scenarios.service.js";
-import { updateScenarioAdjustment } from "./scenarios.service.js";
+import { listActiveScenarioIdsForAccount } from "./scenarios.service.js";
 
 export const projectionWindows = [30, 60, 90] as const;
 export type ProjectionWindowDays = (typeof projectionWindows)[number];
@@ -212,15 +211,6 @@ const getFutureCommitmentItems = async (accountId: string, asOfDate: string, win
 const getScenarioAdjustmentItems = async (accountId: string, asOfDate: string, windowEndDate: string, scenarioIds: string[]): Promise<RawProjectionItem[]> => {
   if (!scenarioIds.length) return [];
 
-  const idsForAccount = await db
-    .select({ scenarioId: scenarioAccounts.scenarioId })
-    .from(scenarioAccounts)
-    .where(eq(scenarioAccounts.accountId, accountId));
-
-  const allowedScenarioIds = new Set(idsForAccount.map((row) => row.scenarioId));
-  const filteredScenarioIds = scenarioIds.filter((scenarioId) => allowedScenarioIds.has(scenarioId));
-  if (!filteredScenarioIds.length) return [];
-
   const rows = await db
     .select({
       id: scenarioAdjustments.id,
@@ -237,13 +227,13 @@ const getScenarioAdjustmentItems = async (accountId: string, asOfDate: string, w
     .where(
       and(
         eq(scenarioAdjustments.accountId, accountId),
+        inArray(scenarioAdjustments.scenarioId, scenarioIds),
         lte(scenarioAdjustments.date, windowEndDate),
         gt(scenarioAdjustments.date, asOfDate)
       )
     );
 
   return rows
-    .filter((row) => filteredScenarioIds.includes(row.scenarioId))
     .map((row) => ({
       id: `${row.scenarioId}:${row.id}`,
       source: "scenario_adjustment" as ProjectionItemSource,
@@ -277,7 +267,7 @@ export const getAccountProjection = async (accountId: string, input: ProjectionI
   const asOfDate = input.asOfDate ?? isoToday();
   const windowDays = normalizeWindowDays(input.windowDays);
   const windowEndDate = addDays(asOfDate, windowDays);
-  const selectedScenarioIds = (input.scenarioIds ?? []).filter(Boolean);
+  const selectedScenarioIds = await listActiveScenarioIdsForAccount(account.id, (input.scenarioIds ?? []).filter(Boolean));
   const projectionStartBalanceCents = await getProjectionStartBalanceCents(account.id, account.statementChainBalance, asOfDate);
   const baselineItems = [
     ...(await getFutureCommitmentItems(account.id, asOfDate, windowEndDate)),

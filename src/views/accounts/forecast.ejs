@@ -5,7 +5,7 @@
 <section class="page-header row">
   <div>
     <h1><%= projection.account.name %> Forecast</h1>
-    <p>Projected from <%= projection.asOfDate %> through <%= projection.windowEndDate %>. <%= projection.mode === 'scenario' ? 'Scenario overlay active.' : '' %></p>
+    <p>Projected from <%= projection.asOfDate %> through <%= projection.windowEndDate %>.</p>
   </div>
   <div class="form-actions">
     <a class="button secondary-button" href="/accounts/<%= projection.account.id %>/register">Register</a>
@@ -25,14 +25,23 @@
     <label>Scenarios
       <select name="scenarioIds" multiple size="<%= Math.min(scenarioOptions.length, 6) %>">
         <% scenarioOptions.forEach((scenario) => { %>
-          <option value="<%= scenario.id %>" <%= (selectedScenarioIds || []).includes(scenario.id) ? "selected" : "" %>><%= scenario.name %> <%= scenario.active ? "" : "(archived)" %></option>
+          <option value="<%= scenario.id %>" <%= (selectedScenarioIds || []).includes(scenario.id) ? "selected" : "" %>><%= scenario.name %></option>
         <% }) %>
       </select>
     </label>
     <span class="hint">Hold Cmd/Ctrl to select multiple scenarios.</span>
   <% } %>
   <button type="submit">Update</button>
+  <% if (projection.selectedScenarioIds.length) { %>
+    <a class="button secondary-button" href="/accounts/<%= projection.account.id %>/forecast?window=<%= projection.windowDays %>">Clear scenarios</a>
+  <% } %>
 </form>
+
+<% if (projection.mode === "scenario") { %>
+  <div class="scenario-overlay-banner" role="status">
+    Scenario overlay active for <strong><%= projection.selectedScenarioIds.length %></strong> selected scenario<%= projection.selectedScenarioIds.length === 1 ? "" : "s" %>.
+  </div>
+<% } %>
 
 <section class="metric-grid forecast-summary">
   <div class="metric-card">

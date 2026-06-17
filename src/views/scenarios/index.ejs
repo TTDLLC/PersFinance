@@ -1,11 +1,66 @@
-<%- include('../../partials/nav', {title: title}) %>
+<section class="page-header row">
+  <div>
+    <h1>Scenarios</h1>
+    <p>Manage hypothetical forecast overlays without changing register data.</p>
+  </div>
+  <div class="form-actions">
+    <a class="button secondary-button" href="/accounts">Back to Accounts</a>
+    <a class="button" href="/scenarios/new">New Scenario</a>
+  </div>
+</section>
 
-<h1>Scenarios</h1>
-<p class="muted">Scenarios listing placeholder.</p>
-<ul>
-  <% (scenarios || []).forEach(function (s) { %>
-    <li><a href="/scenarios/<%= s.id %>"><%= s.name %></a> — active: <%= s.active ? 'yes' : 'no' %>, accounts: <%= s.accountCount %></li>
-  <% }) %>
-</ul>
+<form class="filter-bar" method="get" action="/scenarios">
+  <label class="checkbox">
+    <input type="checkbox" name="showAll" value="true" <%= showAll ? "checked" : "" %>>
+    Show archived
+  </label>
+  <button type="submit">Apply</button>
+</form>
 
-<p><a class="button" href="/scenarios/new">New Scenario</a></p>
+<section class="table-panel">
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Status</th>
+        <th>Accounts</th>
+        <th>Updated</th>
+        <th class="actions">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% if (!scenarios || !scenarios.length) { %>
+        <tr>
+          <td class="empty-state" colspan="5">
+            <%= showAll ? "No scenarios found." : "No active scenarios yet." %>
+          </td>
+        </tr>
+      <% } else { %>
+        <% scenarios.forEach((scenario) => { %>
+          <tr>
+            <td>
+              <a href="/scenarios/<%= scenario.id %>"><strong><%= scenario.name %></strong></a>
+              <% if (scenario.description) { %>
+                <div class="muted"><%= scenario.description %></div>
+              <% } %>
+            </td>
+            <td><span class="status"><%= scenario.active ? "Active" : "Archived" %></span></td>
+            <td><%= scenario.accountCount %></td>
+            <td><%= scenario.updatedAt ? new Date(scenario.updatedAt).toISOString().slice(0, 10) : "" %></td>
+            <td class="actions">
+              <div class="account-actions">
+                <a class="small-button" href="/scenarios/<%= scenario.id %>">View</a>
+                <a class="small-button" href="/scenarios/<%= scenario.id %>/edit">Edit</a>
+                <% if (scenario.active) { %>
+                  <form method="post" action="/scenarios/<%= scenario.id %>/archive">
+                    <button class="small-button" type="submit">Archive</button>
+                  </form>
+                <% } %>
+              </div>
+            </td>
+          </tr>
+        <% }) %>
+      <% } %>
+    </tbody>
+  </table>
+</section>

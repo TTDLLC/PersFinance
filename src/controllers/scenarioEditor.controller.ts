@@ -6,19 +6,30 @@ import {
   archiveScenario,
   createScenario,
   getScenario,
+  getScenarioAccountOptions,
   listScenarioAdjustments,
   listScenarios,
   updateScenario
 } from "../services/scenarios.service.js";
 
+const nullableText = (value: unknown) => {
+  const trimmed = String(value ?? "").trim();
+  return trimmed.length ? trimmed : null;
+};
+
+const checkboxValues = (value: unknown) => {
+  if (Array.isArray(value)) return value.filter((item): item is string => typeof item === "string" && item.length > 0);
+  return typeof value === "string" && value.length > 0 ? [value] : [];
+};
+
 export const createScenarioController = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const result = await createScenario({
-      name: req.body.name ?? "",
-      description: req.body.description ?? null,
-      notes: req.body.notes ?? null,
+      name: String(req.body.name ?? "").trim(),
+      description: nullableText(req.body.description),
+      notes: nullableText(req.body.notes),
       active: req.body.active === "on",
-      accountIds: Array.isArray(req.body.accountIds) ? req.body.accountIds : []
+      accountIds: checkboxValues(req.body.accountIds)
     });
     req.flash("success", "Scenario created.");
     res.redirect(`/scenarios/${result.id}`);
@@ -30,11 +41,11 @@ export const createScenarioController = async (req: Request, res: Response, next
 export const updateScenarioController = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const result = await updateScenario(req.params.id, {
-      name: req.body.name ?? "",
-      description: req.body.description ?? null,
-      notes: req.body.notes ?? null,
+      name: String(req.body.name ?? "").trim(),
+      description: nullableText(req.body.description),
+      notes: nullableText(req.body.notes),
       active: req.body.active === "on",
-      accountIds: Array.isArray(req.body.accountIds) ? req.body.accountIds : []
+      accountIds: checkboxValues(req.body.accountIds)
     });
     req.flash("success", "Scenario updated.");
     res.redirect(`/scenarios/${result.id}`);
@@ -115,6 +126,7 @@ export const viewScenarioController = async (req: Request, res: Response, next: 
       title: scenario.name,
       view: "scenarios/detail",
       scenario,
+      accounts: await getScenarioAccountOptions(scenario.id),
       adjustments: await listScenarioAdjustments(scenario.id)
     });
   } catch (error) {
