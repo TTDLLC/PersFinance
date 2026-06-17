@@ -1,28 +1,33 @@
 import { Router } from "express";
+import type { Request } from "express";
 import { eq } from "drizzle-orm";
 import { db } from "../db/index.js";
 import {
   accounts,
   categories,
-  payees,
-  scenarioAdjustments
+  payees
 } from "../db/schema.js";
+import { requireAuth } from "../middleware/auth.js";
 import {
   archiveScenarioController,
   createScenarioController,
-  editScenarioController,
   listScenariosController,
   newScenarioController,
-  updateScenarioController,
-  viewScenarioController
+  updateScenarioController
 } from "../controllers/scenarioEditor.controller.js";
 import {
   createScenarioAdjustment,
   deleteScenarioAdjustment,
   getScenario,
+  getScenarioAdjustment,
+  getScenarioAccountOptions,
   listScenarioAdjustments,
   updateScenarioAdjustment
 } from "../services/scenarios.service.js";
+
+const flashValidationError = (req: Request, error: unknown) => {
+  req.flash("error", error instanceof Error ? error.message : "Could not save adjustment.");
+};
 
 const activeAccounts = async () =>
   db
@@ -47,6 +52,7 @@ const activeCategories = async () =>
 
 export const scenariosRoutes = Router();
 
+scenariosRoutes.use(requireAuth);
 scenariosRoutes.get("/", listScenariosController);
 scenariosRoutes.get("/new", newScenarioController);
 scenariosRoutes.post("/", createScenarioController);
@@ -63,6 +69,7 @@ scenariosRoutes.get("/:id", async (req, res, next) => {
       title: scenario.name,
       view: "scenarios/detail",
       scenario,
+      accounts: await getScenarioAccountOptions(scenario.id),
       adjustments: await listScenarioAdjustments(scenario.id)
     });
   } catch (error) {
@@ -106,7 +113,7 @@ scenariosRoutes.get("/:id/adjustments/new", async (req, res, next) => {
       view: "scenarios/adjustment-form",
       scenario,
       adjustment: { date: new Date().toISOString().slice(0, 10), amount: "", description: "", notes: "" },
-      accounts: await activeAccounts(),
+      accounts: await getScenarioAccountOptions(scenario.id),
       payees: await activePayees(),
       categories: await activeCategories()
     });
@@ -130,18 +137,16 @@ scenariosRoutes.post("/:id/adjustments", async (req, res, next) => {
     req.flash("success", "Adjustment added.");
     res.redirect(`/scenarios/${req.params.id}`);
   } catch (error) {
-    next(error);
+    flashValidationError(req, error);
+    res.redirect(`/scenarios/${req.params.id}/adjustments/new`);
   }
 });
 
 scenariosRoutes.get("/:id/adjustments/:adjustmentId/edit", async (req, res, next) => {
   try {
-    const [adjustment] = await db
-      .select()
-      .from(scenarioAdjustments)
-      .where(eq(scenarioAdjustments.id, req.params.adjustmentId))
-      .limit(1);
-    if (!adjustment || adjustment.scenarioId !== req.params.id) {
+    const scenario = await getScenario(req.params.id);
+    const adjustment = await getScenarioAdjustment(req.params.id, req.params.adjustmentId);
+    if (!scenario || !adjustment) {
       req.flash("error", "Adjustment not found.");
       res.redirect(`/scenarios/${req.params.id}`);
       return;
@@ -149,9 +154,9 @@ scenariosRoutes.get("/:id/adjustments/:adjustmentId/edit", async (req, res, next
     res.render("layout", {
       title: "Edit Adjustment",
       view: "scenarios/adjustment-form",
-      scenario: await getScenario(req.params.id),
+      scenario,
       adjustment,
-      accounts: await activeAccounts(),
+      accounts: await getScenarioAccountOptions(req.params.id),
       payees: await activePayees(),
       categories: await activeCategories()
     });
@@ -162,7 +167,7 @@ scenariosRoutes.get("/:id/adjustments/:adjustmentId/edit", async (req, res, next
 
 scenariosRoutes.post("/:id/adjustments/:adjustmentId", async (req, res, next) => {
   try {
-    await updateScenarioAdjustment(req.params.adjustmentId, {
+    await updateScenarioAdjustment(req.params.id, req.params.adjustmentId, {
       accountId: req.body.accountId,
       date: req.body.date,
       amount: req.body.amount,
@@ -174,7 +179,8 @@ scenariosRoutes.post("/:id/adjustments/:adjustmentId", async (req, res, next) =>
     req.flash("success", "Adjustment updated.");
     res.redirect(`/scenarios/${req.params.id}`);
   } catch (error) {
-    next(error);
+    flashValidationError(req, error);
+    res.redirect(`/scenarios/${req.params.id}/adjustments/${req.params.adjustmentId}/edit`);
   }
 });
 
@@ -182,17 +188,13 @@ scenariosRoutes.post(
   "/:id/adjustments/:adjustmentId/delete",
   async (req, res, next) => {
     try {
-      const [existing] = await db
-        .select()
-        .from(scenarioAdjustments)
-        .where(eq(scenarioAdjustments.id, req.params.adjustmentId))
-        .limit(1);
-      if (!existing || existing.scenarioId !== req.params.id) {
+      const existing = await getScenarioAdjustment(req.params.id, req.params.adjustmentId);
+      if (!existing) {
         req.flash("error", "Adjustment not found.");
         res.redirect(`/scenarios/${req.params.id}`);
         return;
       }
-      await deleteScenarioAdjustment(req.params.adjustmentId);
+      await deleteScenarioAdjustment(req.params.id, req.params.adjustmentId);
       req.flash("success", "Adjustment removed.");
       res.redirect(`/scenarios/${req.params.id}`);
     } catch (error) {

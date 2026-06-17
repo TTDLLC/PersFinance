@@ -1,9 +1,15 @@
-<%- include('../../partials/nav', {title: title}) %>
+<section class="page-header row">
+  <div>
+    <h1><%= scenario && scenario.id ? 'Edit Scenario' : 'New Scenario' %></h1>
+    <p>Choose the accounts where this hypothetical overlay can appear.</p>
+  </div>
+  <div class="form-actions">
+    <a class="button secondary-button" href="<%= scenario && scenario.id ? '/scenarios/' + scenario.id : '/scenarios' %>">Cancel</a>
+  </div>
+</section>
 
-<h1><%= scenario && scenario.id ? 'Edit Scenario' : 'New Scenario' %></h1>
-
-<form method="post" action="<%= typeof scenario !== 'undefined' && scenario && scenario.id ? '/scenarios/' + scenario.id : '/scenarios/new' %>">
-  <fieldset>
+<form class="form" method="post" action="<%= typeof scenario !== 'undefined' && scenario && scenario.id ? '/scenarios/' + scenario.id : '/scenarios' %>">
+  <fieldset class="grid-form">
     <legend>Scenario Details</legend>
     <label>Name
       <input type="text" name="name" value="<%= typeof scenario !== 'undefined' && scenario && scenario.name ? scenario.name : '' %>" required>
@@ -20,7 +26,7 @@
     </label>
   </fieldset>
 
-  <fieldset>
+  <fieldset class="checkbox-group full">
     <legend>Accounts</legend>
     <p class="hint">Select the accounts this scenario applies to.</p>
     <div class="checkbox-list">
@@ -33,9 +39,8 @@
     </div>
   </fieldset>
 
-  <button type="submit">Save Scenario</button>
-</form>
-
-<form method="post" action="/scenarios" class="cancel-row">
-  <a class="button secondary-button" href="/scenarios">Cancel</a>
+  <div class="form-actions">
+    <button type="submit">Save Scenario</button>
+    <a class="button secondary-button" href="<%= scenario && scenario.id ? '/scenarios/' + scenario.id : '/scenarios' %>">Cancel</a>
+  </div>
 </form>

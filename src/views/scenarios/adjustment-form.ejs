@@ -1,10 +1,15 @@
-<%- include('../../partials/nav', {title: title}) %>
+<section class="page-header row">
+  <div>
+    <h1><%= adjustment && adjustment.id ? 'Edit Adjustment' : 'New Adjustment' %></h1>
+    <p>Scenario: <strong><%= scenario && scenario.name ? scenario.name : '' %></strong></p>
+  </div>
+  <div class="form-actions">
+    <a class="button secondary-button" href="/scenarios/<%= scenario.id %>">Cancel</a>
+  </div>
+</section>
 
-<h1><%= adjustment && adjustment.id ? 'Edit Adjustment' : 'New Adjustment' %></h1>
-<p>Scenario: <strong><%= scenario && scenario.name ? scenario.name : '' %></strong></p>
-
-<form method="post" action="<%= typeof adjustment !== 'undefined' && adjustment && adjustment.id ? '/scenarios/' + scenario.id + '/adjustments/' + adjustment.id : '/scenarios/' + scenario.id + '/adjustments' %>">
-  <fieldset>
+<form class="form" method="post" action="<%= typeof adjustment !== 'undefined' && adjustment && adjustment.id ? '/scenarios/' + scenario.id + '/adjustments/' + adjustment.id : '/scenarios/' + scenario.id + '/adjustments' %>">
+  <fieldset class="grid-form">
     <legend>Adjustment Details</legend>
     <label>Date
       <input type="date" name="date" value="<%= typeof adjustment !== 'undefined' && adjustment && adjustment.date ? adjustment.date : '' %>" required>
@@ -50,9 +55,8 @@
     </label>
   </fieldset>
 
-  <button type="submit">Save Adjustment</button>
-</form>
-
-<form method="post" action="/scenarios/<%= scenario && scenario.id ? scenario.id : '' %>" class="cancel-row">
-  <a class="button secondary-button" href="/scenarios/<%= scenario && scenario.id ? scenario.id : '' %>">Cancel</a>
+  <div class="form-actions">
+    <button type="submit">Save Adjustment</button>
+    <a class="button secondary-button" href="/scenarios/<%= scenario && scenario.id ? scenario.id : '' %>">Cancel</a>
+  </div>
 </form>
