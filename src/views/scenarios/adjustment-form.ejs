@@ -1,0 +1,58 @@
+<%- include('../../partials/nav', {title: title}) %>
+
+<h1><%= adjustment && adjustment.id ? 'Edit Adjustment' : 'New Adjustment' %></h1>
+<p>Scenario: <strong><%= scenario && scenario.name ? scenario.name : '' %></strong></p>
+
+<form method="post" action="<%= typeof adjustment !== 'undefined' && adjustment && adjustment.id ? '/scenarios/' + scenario.id + '/adjustments/' + adjustment.id : '/scenarios/' + scenario.id + '/adjustments' %>">
+  <fieldset>
+    <legend>Adjustment Details</legend>
+    <label>Date
+      <input type="date" name="date" value="<%= typeof adjustment !== 'undefined' && adjustment && adjustment.date ? adjustment.date : '' %>" required>
+    </label>
+    <label>Account
+      <select name="accountId" required>
+        <option value="">Select account</option>
+        <% accounts.forEach((account) => { %>
+          <option value="<%= account.id %>" <%= typeof adjustment !== 'undefined' && adjustment && adjustment.accountId === account.id ? 'selected' : '' %>>
+            <%= account.name %> (<%= account.type %>)
+          </option>
+        <% }) %>
+      </select>
+    </label>
+    <label>Amount
+      <input type="number" step="0.01" name="amount" value="<%= typeof adjustment !== 'undefined' && adjustment && adjustment.amount ? adjustment.amount : '' %>" required>
+    </label>
+    <label>Payee
+      <select name="payeeId">
+        <option value="">No payee</option>
+        <% payees.forEach((payee) => { %>
+          <option value="<%= payee.id %>" <%= typeof adjustment !== 'undefined' && adjustment && adjustment.payeeId === payee.id ? 'selected' : '' %>>
+            <%= payee.name %>
+          </option>
+        <% }) %>
+      </select>
+    </label>
+    <label>Category
+      <select name="categoryId">
+        <option value="">No category</option>
+        <% categories.forEach((category) => { %>
+          <option value="<%= category.id %>" <%= typeof adjustment !== 'undefined' && adjustment && adjustment.categoryId === category.id ? 'selected' : '' %>>
+            <%= category.name %>
+          </option>
+        <% }) %>
+      </select>
+    </label>
+    <label>Description
+      <input type="text" name="description" value="<%= typeof adjustment !== 'undefined' && adjustment && adjustment.description ? adjustment.description : '' %>">
+    </label>
+    <label>Notes
+      <textarea name="notes"><%= typeof adjustment !== 'undefined' && adjustment && adjustment.notes ? adjustment.notes : '' %></textarea>
+    </label>
+  </fieldset>
+
+  <button type="submit">Save Adjustment</button>
+</form>
+
+<form method="post" action="/scenarios/<%= scenario && scenario.id ? scenario.id : '' %>" class="cancel-row">
+  <a class="button secondary-button" href="/scenarios/<%= scenario && scenario.id ? scenario.id : '' %>">Cancel</a>
+</form>

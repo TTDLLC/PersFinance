@@ -1,0 +1,41 @@
+<%- include('../../partials/nav', {title: title}) %>
+
+<h1><%= scenario && scenario.id ? 'Edit Scenario' : 'New Scenario' %></h1>
+
+<form method="post" action="<%= typeof scenario !== 'undefined' && scenario && scenario.id ? '/scenarios/' + scenario.id : '/scenarios/new' %>">
+  <fieldset>
+    <legend>Scenario Details</legend>
+    <label>Name
+      <input type="text" name="name" value="<%= typeof scenario !== 'undefined' && scenario && scenario.name ? scenario.name : '' %>" required>
+    </label>
+    <label>Description
+      <textarea name="description"><%= typeof scenario !== 'undefined' && scenario && scenario.description ? scenario.description : '' %></textarea>
+    </label>
+    <label>Notes
+      <textarea name="notes"><%= typeof scenario !== 'undefined' && scenario && scenario.notes ? scenario.notes : '' %></textarea>
+    </label>
+    <label class="checkbox-label">
+      <input type="checkbox" name="active" <%= !scenario || typeof scenario.active === 'undefined' || scenario.active ? 'checked' : '' %>>
+      <span>Active</span>
+    </label>
+  </fieldset>
+
+  <fieldset>
+    <legend>Accounts</legend>
+    <p class="hint">Select the accounts this scenario applies to.</p>
+    <div class="checkbox-list">
+      <% accounts.forEach((account) => { %>
+        <label class="checkbox-label">
+          <input type="checkbox" name="accountIds" value="<%= account.id %>" <%= typeof scenario !== 'undefined' && scenario && Array.isArray(scenario.accountIds) && scenario.accountIds.includes(account.id) ? 'checked' : '' %>>
+          <span><%= account.name %> (<%= account.type %>)</span>
+        </label>
+      <% }) %>
+    </div>
+  </fieldset>
+
+  <button type="submit">Save Scenario</button>
+</form>
+
+<form method="post" action="/scenarios" class="cancel-row">
+  <a class="button secondary-button" href="/scenarios">Cancel</a>
+</form>

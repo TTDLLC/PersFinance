@@ -1,0 +1,67 @@
+<%- include('../../partials/nav', {title: title}) %>
+
+<h1><%= typeof scenario !== 'undefined' && scenario && scenario.id ? 'Scenario Details' : 'Scenario' %></h1>
+
+<div class="detail-layout">
+  <div>
+    <section class="card">
+      <h2>Scenario</h2>
+      <dl>
+        <dt>Name</dt>
+        <dd><%= scenario && scenario.name ? scenario.name : '' %></dd>
+        <dt>Description</dt>
+        <dd><%= scenario && scenario.description ? scenario.description : '—' %></dd>
+        <dt>Notes</dt>
+        <dd><%= scenario && scenario.notes ? scenario.notes : '—' %></dd>
+        <dt>Status</dt>
+        <dd><%= scenario && scenario.active ? 'Active' : 'Archived' %></dd>
+      </dl>
+      <div class="form-actions">
+        <a class="button" href="/scenarios/<%= scenario.id %>/edit">Edit Details</a>
+        <form method="post" action="/scenarios/<%= scenario.id %>/archive" class="inline-form">
+          <button type="submit" class="secondary-button">Archive</button>
+        </form>
+      </div>
+    </section>
+  </div>
+  <div>
+    <section class="card">
+      <h2>Adjustments</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Account</th>
+            <th>Amount</th>
+            <th>Description</th>
+            <th>Category</th>
+            <th>Payee</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% if (!adjustments || !adjustments.length) { %>
+            <tr>
+              <td class="empty-state" colspan="6">No adjustments yet.</td>
+            </tr>
+          <% } else { %>
+            <% adjustments.forEach((adjustment) => { %>
+              <tr>
+                <td><%= adjustment.date %></td>
+                <td><%= adjustment.accountId %></td>
+                <td class="<%= signedClass(adjustment.amount) %>"><%= accountingMoney(adjustment.amount) %></td>
+                <td><%= adjustment.description || '' %></td>
+                <td><%= adjustment.categoryName || '' %></td>
+                <td><%= adjustment.payeeName || '' %></td>
+              </tr>
+            <% }) %>
+          <% } %>
+        </tbody>
+      </table>
+      <p>
+        <a class="button" href="/scenarios/<%= scenario.id %>/adjustments/new">New Adjustment</a>
+      </p>
+    </section>
+  </div>
+</div>
+
+<p><a class="button secondary-button" href="/scenarios">Back to Scenarios</a></p>

@@ -20,6 +20,7 @@ const testUserEmail = "step4-smoke@example.com";
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
+  console.log(`  [ok] ${message}`);
 }
 
 const cleanup = async () => {
@@ -45,6 +46,7 @@ const listScenarioIds = async () => {
 };
 
 const main = async () => {
+  console.log("[step4] start");
   await cleanup();
 
   const checking = await Accounts.createAccount({
@@ -154,7 +156,11 @@ const main = async () => {
   }
 };
 
-main().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+main()
+  .then(() => {
+    console.log("[step4] complete");
+  })
+  .catch((error) => {
+    console.error("[step4] failed", error);
+    process.exitCode = 1;
+  });
