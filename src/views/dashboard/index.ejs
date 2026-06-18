@@ -1,5 +1,12 @@
-<section class="page-header">
-  <h1>Dashboard</h1>
+<section class="page-header row">
+  <div>
+    <h1>Dashboard</h1>
+    <p><%= showArchived ? "Showing active and archived accounts." : "Showing active accounts." %></p>
+  </div>
+  <div class="form-actions">
+    <a class="button secondary-button" href="/dashboard<%= showArchived ? '' : '?showArchived=true' %>"><%= showArchived ? "Hide Archived" : "Show Archived" %></a>
+    <a class="button" href="/accounts/new">New Account</a>
+  </div>
 </section>
 
 <table>
@@ -20,8 +27,13 @@
     <% accounts.forEach((account) => { %>
       <% const liabilityAccount = ["credit_card", "loan"].includes(account.type); %>
       <% const projectedLow = account.projection ? account.projection.projectedLowBalance : null; %>
-      <tr>
-        <td><%= account.name %></td>
+      <tr class="<%= account.active ? "" : "muted" %>">
+        <td>
+          <%= account.name %>
+          <% if (!account.active) { %>
+            <span class="status">Archived</span>
+          <% } %>
+        </td>
         <td><%= label(account.type) %></td>
         <td class="<%= signedClass(account.currentBalance) %>"><%= money(account.currentBalance) %></td>
         <td>

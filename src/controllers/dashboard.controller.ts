@@ -2,9 +2,11 @@ import type { Request, Response } from "express";
 import { Accounts } from "../services/accounts.service.js";
 import { getAccountProjection } from "../services/projections.service.js";
 
-export const showDashboard = async (_req: Request, res: Response) => {
+export const showDashboard = async (req: Request, res: Response) => {
+  const showArchived = req.query.showArchived === "true";
   const accountRows = await Accounts.list({
-    fields: ["id", "name", "type", "currentBalance", "lastReconciledDate"]
+    fields: ["id", "name", "type", "currentBalance", "lastReconciledDate", "active"],
+    activeOnly: !showArchived
   });
   const accounts = await Promise.all(
     accountRows.map(async (account) => ({
@@ -16,6 +18,7 @@ export const showDashboard = async (_req: Request, res: Response) => {
   res.render("layout", {
     title: "Dashboard",
     view: "dashboard/index",
-    accounts
+    accounts,
+    showArchived
   });
 };
