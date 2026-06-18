@@ -1,6 +1,5 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import flash from "connect-flash";
 import pgSession from "connect-pg-simple";
 import express from "express";
 import session from "express-session";
@@ -9,6 +8,7 @@ import { env } from "./config/env.js";
 import { pool } from "./db/index.js";
 import { attachUser } from "./middleware/auth.js";
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";
+import { flash } from "./middleware/flash.js";
 import { accountsRoutes } from "./routes/accounts.routes.js";
 import { authRoutes } from "./routes/auth.routes.js";
 import { categoriesRoutes } from "./routes/categories.routes.js";
@@ -53,7 +53,7 @@ app.use(
   })
 );
 
-app.use(flash());
+app.use(flash);
 app.use(attachUser);
 app.use((req, res, next) => {
   res.locals.currentUser = req.user;
