@@ -66,12 +66,13 @@ export const archiveScenarioController = async (req: Request, res: Response, nex
 
 export const listScenariosController = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const showAll = req.query.showAll === "true";
+    const showArchived = req.query.showArchived === "true" || req.query.showAll === "true";
     res.render("layout", {
       title: "Scenarios",
       view: "scenarios/index",
-      scenarios: await listScenarios({ includeInactive: showAll }),
-      showAll
+      scenarios: await listScenarios({ includeInactive: showArchived }),
+      showArchived,
+      showAll: showArchived
     });
   } catch (error) {
     next(error);

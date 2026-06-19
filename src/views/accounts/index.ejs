@@ -1,6 +1,12 @@
 <section class="page-header row">
-  <div><h1>Accounts</h1><p>Your current account overview.</p></div>
-  <a class="button" href="/accounts/new">New Account</a>
+  <div>
+    <h1>Accounts</h1>
+    <p><%= showArchived ? "Showing active and archived accounts." : "Showing active accounts." %></p>
+  </div>
+  <div class="form-actions">
+    <a class="button secondary-button" href="/accounts<%= showArchived ? '' : '?showArchived=true' %>"><%= showArchived ? "Hide Archived" : "Show Archived" %></a>
+    <a class="button" href="/accounts/new">New Account</a>
+  </div>
 </section>
 <table>
   <thead><tr><th>Name</th><th>Type</th><th>Current Balance</th><th>Status</th><th>Actions</th></tr></thead>
@@ -10,7 +16,12 @@
     <% } %>
     <% accounts.forEach((account) => { %>
       <tr class="<%= account.active ? "" : "muted" %>">
-        <td><%= account.name %></td>
+        <td>
+          <%= account.name %>
+          <% if (!account.active) { %>
+            <span class="status">Archived</span>
+          <% } %>
+        </td>
         <td><%= label(account.type) %></td>
         <td class="<%= signedClass(account.currentBalance) %>"><%= money(account.currentBalance) %></td>
         <td><span class="status"><%= account.active ? "Active" : "Archived" %></span></td>

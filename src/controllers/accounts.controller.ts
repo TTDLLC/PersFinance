@@ -8,9 +8,17 @@ import { accountSchema, accountTypes, firstValidationMessage } from "../validati
 const today = () => new Date().toISOString().slice(0, 10);
 const toMoney = (value: number) => value.toFixed(2);
 
-export const listAccounts = async (_req: Request, res: Response) => {
-  const rows = await Accounts.list({ activeOnly: false });
-  res.render("layout", { title: "Accounts", view: "accounts/index", accounts: rows });
+const queryFlag = (value: unknown, defaultValue: boolean) => {
+  const lastValue = Array.isArray(value) ? value[value.length - 1] : value;
+  if (lastValue === "true" || lastValue === "on") return true;
+  if (lastValue === "false") return false;
+  return defaultValue;
+};
+
+export const listAccounts = async (req: Request, res: Response) => {
+  const showArchived = queryFlag(req.query.showArchived, false);
+  const rows = await Accounts.list({ activeOnly: !showArchived });
+  res.render("layout", { title: "Accounts", view: "accounts/index", accounts: rows, showArchived });
 };
 
 export const newAccount = (_req: Request, res: Response) => {
