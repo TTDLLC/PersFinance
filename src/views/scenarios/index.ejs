@@ -5,17 +5,10 @@
   </div>
   <div class="form-actions">
     <a class="button secondary-button" href="/accounts">Back to Accounts</a>
+    <a class="button secondary-button" href="/scenarios<%= showArchived ? '' : '?showArchived=true' %>"><%= showArchived ? "Hide Archived" : "Show Archived" %></a>
     <a class="button" href="/scenarios/new">New Scenario</a>
   </div>
 </section>
-
-<form class="filter-bar" method="get" action="/scenarios">
-  <label class="checkbox">
-    <input type="checkbox" name="showAll" value="true" <%= showAll ? "checked" : "" %>>
-    Show archived
-  </label>
-  <button type="submit">Apply</button>
-</form>
 
 <section class="table-panel">
   <table>
@@ -32,14 +25,17 @@
       <% if (!scenarios || !scenarios.length) { %>
         <tr>
           <td class="empty-state" colspan="5">
-            <%= showAll ? "No scenarios found." : "No active scenarios yet." %>
+            <%= showArchived ? "No scenarios found." : "No active scenarios yet." %>
           </td>
         </tr>
       <% } else { %>
         <% scenarios.forEach((scenario) => { %>
-          <tr>
+          <tr class="<%= scenario.active ? "" : "muted" %>">
             <td>
               <a href="/scenarios/<%= scenario.id %>"><strong><%= scenario.name %></strong></a>
+              <% if (!scenario.active) { %>
+                <span class="status">Archived</span>
+              <% } %>
               <% if (scenario.description) { %>
                 <div class="muted"><%= scenario.description %></div>
               <% } %>
