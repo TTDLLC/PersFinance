@@ -206,6 +206,8 @@ const main = async () => {
     const commitmentsAfterPromotion = await getHtml(`${server.baseUrl}/commitments`, cookie);
     assert(commitmentsAfterPromotion.html.includes(`${commitmentPrefix} Resort`), "Future Commitments list should show promoted scenario item.");
     assert(commitmentsAfterPromotion.html.includes(`Scenario: ${scenario.name}`), "Promoted scenario item should show a scenario badge.");
+    const forecastAfterPromotion = await getHtml(`${server.baseUrl}/accounts/${checking.id}/forecast`, cookie);
+    assert(!forecastAfterPromotion.html.includes(`${scenarioPrefix} Vacation`), "Forecast page should not offer promoted-only scenarios as overlay options.");
 
     const promotedBaseline = await getAccountProjection(checking.id, { asOfDate: "2026-06-17", windowDays: 90 });
     assert(
@@ -217,6 +219,8 @@ const main = async () => {
       windowDays: 90,
       scenarioIds: [scenario.id]
     });
+    assert(promotedScenarioProjection?.mode === "baseline", "Promoted-only scenario selection should fall back to baseline mode.");
+    assert(promotedScenarioProjection?.selectedScenarioIds.length === 0, "Promoted-only scenario IDs should be rejected as no-op overlays.");
     assert(
       promotedScenarioProjection?.items.filter((item) => item.source === "scenario_commitment" && item.name === `${commitmentPrefix} Resort`).length === 0,
       "Promoted item should not double-count as a scenario overlay item."

@@ -1,16 +1,16 @@
 # Step 4A — Scenario CRUD
 
-> Historical note: Step 4.5 supersedes the active scenario item model described here. Scenario metadata still exists, but planning items now live in `future_commitments` as Scenario Commitments. See `docs/STEP_4_5_SCENARIO_COMMITMENTS.md`.
+> Historical note: Step 4.5 supersedes the account-link and scenario-adjustment workflow described here. Scenario metadata still exists in `scenarios`, but planning items now live in `future_commitments` as Scenario Commitments. Scenario creation is metadata-only, accounts are derived from scenario items, and overlays use active scenario-only commitments. See `docs/STEP_4_5_SCENARIO_COMMITMENTS.md`.
 
 ## Purpose
 
-Step 4A adds lightweight what-if scenarios to PersFinance without changing the existing forecast shape. A scenario is a named, versioned set of hypothetical adjustments that can be stacked on top of the baseline projection.
+Step 4A added lightweight what-if scenarios to PersFinance without changing the existing forecast shape. In this historical design, a scenario was a named, versioned set of hypothetical adjustments that could be stacked on top of the baseline projection.
 
-This step intentionally does not add forecasting math changes beyond applying scenario adjustments on top of the existing projection.
+This step intentionally did not add forecasting math changes beyond applying scenario adjustments on top of the existing projection.
 
 ## Scope
 
-In scope:
+Historical scope:
 - scenarios table
 - scenario_adjustments table
 - scenario_accounts join table
@@ -28,7 +28,7 @@ Out of scope for Step 4A:
 
 ### scenarios
 
-Represents a named what-if scenario.
+Represents a named what-if scenario. This remains current as scenario metadata.
 
 | Field | Notes |
 |-------|-------|
@@ -44,7 +44,7 @@ Behavior:
 
 ### scenario_accounts
 
-Links a scenario to one or more accounts.
+Historically linked a scenario to one or more accounts. In the current Step 4.5 workflow, accounts are derived from scenario commitments instead.
 
 | Field | Notes |
 |-------|-------|
@@ -55,7 +55,7 @@ The projection service only applies adjustments when the selected scenario is li
 
 ### scenario_adjustments
 
-Represents an adjustment line inside a scenario.
+Historically represented an adjustment line inside a scenario. In the current Step 4.5 workflow, scenario planning rows live in `future_commitments`.
 
 | Field | Notes |
 |-------|-------|
@@ -76,25 +76,25 @@ Constraints and indexes:
 
 ## Multi-Account Behavior
 
-A single scenario can include adjustments for multiple accounts. This matches the intent that a what-if can span related accounts.
+A single scenario can still span multiple accounts, but current account membership comes from scenario commitments rather than from manual scenario-account assignment.
 
-When projecting an account:
+Historically, when projecting an account:
 - Only adjustments for linked accounts are considered.
 - Multiple selected scenarios can each contribute adjustments.
 
 ## Stacking Behavior
 
-The forecast page supports selecting multiple scenarios at once. Their adjustments are merged into one sorted overlay and applied on top of the baseline projection.
+The forecast page still supports selecting multiple scenarios at once. In Step 4.5, active scenario-only commitments are merged into the overlay instead of scenario adjustments.
 
 Expected behavior:
 - All selected scenarios are applied.
-- Scenario adjustments sort after baseline commitments, transfers, and future transactions.
-- The same-day projection order remains intact: commitment, transfer, future transaction, scenario adjustment.
+- Scenario commitments sort after baseline commitments, transfers, and future transactions.
+- The same-day projection order remains intact: commitment, transfer, future transaction, scenario commitment.
 - Each selected scenario remains identifiable by scenarioId in projection items.
 
 ## Forecast Behavior
 
-Scenario adjustments:
+Scenario commitments:
 - Are not persisted to register transactions.
 - Are not reconciled.
 - Do not modify the source of truth account balance.
@@ -104,10 +104,10 @@ The starting balance for the forecast remains the same as the baseline projectio
 
 ## User Flow
 
-1. Create or edit a scenario.
-2. Assign accounts and add adjustments.
+1. Create or edit scenario metadata.
+2. Add scenario commitments on the scenario detail page.
 3. Open the account forecast page.
-4. Select one or more scenarios.
+4. Select one or more scenarios that have active scenario-only commitments for that account.
 5. Forecast applies the merged scenario overlay.
 6. Clear selections to return to baseline.
 

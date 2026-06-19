@@ -1,7 +1,6 @@
 import {
   and,
   asc,
-  count,
   desc,
   eq,
   inArray,
@@ -245,30 +244,20 @@ export const deleteScenarioAdjustment = async (scenarioId: string, id: string) =
 export const listActiveScenarioIdsForAccount = async (accountId: string, scenarioIds: string[]) => {
   const selectedIds = compactUnique(scenarioIds);
   if (!selectedIds.length) return [];
-  const rows = await Promise.all([
-    db
-      .select({ id: scenarios.id })
-      .from(scenarios)
-      .innerJoin(scenarioAccounts, eq(scenarioAccounts.scenarioId, scenarios.id))
-      .where(
-        and(
-          eq(scenarios.active, true),
-          eq(scenarioAccounts.accountId, accountId),
-          inArray(scenarios.id, selectedIds)
-        )
-      ),
-    db
-      .select({ id: scenarios.id })
-      .from(scenarios)
-      .innerJoin(futureCommitments, eq(futureCommitments.scenarioId, scenarios.id))
-      .where(
-        and(
-          eq(scenarios.active, true),
-          eq(futureCommitments.accountId, accountId),
-          inArray(scenarios.id, selectedIds)
-        )
+  const rows = await db
+    .select({ id: scenarios.id })
+    .from(scenarios)
+    .innerJoin(futureCommitments, eq(futureCommitments.scenarioId, scenarios.id))
+    .where(
+      and(
+        eq(scenarios.active, true),
+        eq(futureCommitments.accountId, accountId),
+        inArray(scenarios.id, selectedIds),
+        eq(futureCommitments.includeInBaseline, false),
+        eq(futureCommitments.active, true)
       )
-  ]).then(([linkedRows, commitmentRows]) => [...linkedRows, ...commitmentRows]);
+    )
+    .orderBy(scenarios.name);
   const accepted = new Set(rows.map((row) => row.id));
   return selectedIds.filter((id) => accepted.has(id));
 };

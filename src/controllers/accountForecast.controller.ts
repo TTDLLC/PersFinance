@@ -1,7 +1,7 @@
 import type { Request, Response } from "express";
 import { and, eq } from "drizzle-orm";
 import { db } from "../db/index.js";
-import { futureCommitments, scenarioAccounts, scenarios } from "../db/schema.js";
+import { futureCommitments, scenarios } from "../db/schema.js";
 import { getAccountProjection, projectionWindows } from "../services/projections.service.js";
 
 const selectedWindowDays = (value: unknown) => {
@@ -30,29 +30,23 @@ export const showAccountForecast = async (req: Request, res: Response) => {
     return;
   }
 
-  const scenarioOptions = await Promise.all([
-    db
-      .select({
-        id: scenarios.id,
-        name: scenarios.name,
-        active: scenarios.active
-      })
-      .from(scenarios)
-      .innerJoin(scenarioAccounts, eq(scenarioAccounts.scenarioId, scenarios.id))
-      .where(and(eq(scenarios.active, true), eq(scenarioAccounts.accountId, accountId))),
-    db
-      .selectDistinct({
-        id: scenarios.id,
-        name: scenarios.name,
-        active: scenarios.active
-      })
-      .from(scenarios)
-      .innerJoin(futureCommitments, eq(futureCommitments.scenarioId, scenarios.id))
-      .where(and(eq(scenarios.active, true), eq(futureCommitments.accountId, accountId)))
-  ]).then(([linkedRows, commitmentRows]) => {
-    const byId = new Map([...linkedRows, ...commitmentRows].map((scenario) => [scenario.id, scenario]));
-    return [...byId.values()].sort((left, right) => left.name.localeCompare(right.name));
-  });
+  const scenarioOptions = await db
+    .selectDistinct({
+      id: scenarios.id,
+      name: scenarios.name,
+      active: scenarios.active
+    })
+    .from(scenarios)
+    .innerJoin(futureCommitments, eq(futureCommitments.scenarioId, scenarios.id))
+    .where(
+      and(
+        eq(scenarios.active, true),
+        eq(futureCommitments.accountId, accountId),
+        eq(futureCommitments.includeInBaseline, false),
+        eq(futureCommitments.active, true)
+      )
+    )
+    .orderBy(scenarios.name);
 
   res.render("layout", {
     title: `${projection.account.name} Forecast`,

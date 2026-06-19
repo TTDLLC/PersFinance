@@ -25,6 +25,10 @@ Scenario overlays include active commitments where:
 
 - `scenario_id` is one of the selected active scenarios.
 - `include_in_baseline = false`.
+- `active = true`.
+- `account_id` is the projected account.
+
+A scenario is offered and accepted as a forecast overlay only when it has at least one active scenario-only commitment for the projected account. Promoted-only scenarios are treated as baseline-only and do not trigger `scenario` projection mode.
 
 Promoted scenario commitments are intentionally excluded from overlay items because they are already in the baseline projection.
 
