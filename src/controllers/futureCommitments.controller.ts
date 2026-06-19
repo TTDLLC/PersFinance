@@ -70,13 +70,13 @@ export const createFutureCommitment = async (req: Request, res: Response) => {
     });
     return;
   }
-  await db.insert(futureCommitments).values({ ...parsed.data, amount: toMoney(parsed.data.amount) });
+  await db.insert(futureCommitments).values({ ...parsed.data, scenarioId: null, includeInBaseline: true, amount: toMoney(parsed.data.amount) });
   req.flash("success", "Future commitment created.");
   res.redirect("/commitments");
 };
 
 export const editFutureCommitment = async (req: Request, res: Response) => {
-  const commitment = await getCommitment(req.params.id);
+  const commitment = await getCommitment(req.params.id, { baselineOnly: true });
   if (!commitment) {
     req.flash("error", "Future commitment not found.");
     res.redirect("/commitments");
@@ -91,7 +91,7 @@ export const editFutureCommitment = async (req: Request, res: Response) => {
 };
 
 export const updateFutureCommitment = async (req: Request, res: Response) => {
-  const existing = await getCommitment(req.params.id);
+  const existing = await getCommitment(req.params.id, { baselineOnly: true });
   const parsed = futureCommitmentSchema.safeParse(req.body);
   if (!existing) {
     req.flash("error", "Future commitment not found.");
@@ -117,7 +117,7 @@ export const updateFutureCommitment = async (req: Request, res: Response) => {
 };
 
 export const archiveFutureCommitment = async (req: Request, res: Response) => {
-  const existing = await getCommitment(req.params.id);
+  const existing = await getCommitment(req.params.id, { baselineOnly: true });
   if (!existing) {
     req.flash("error", "Future commitment not found.");
     res.redirect("/commitments");
@@ -133,7 +133,7 @@ export const archiveFutureCommitment = async (req: Request, res: Response) => {
 };
 
 export const newCommitmentEntry = async (req: Request, res: Response) => {
-  const commitment = await getCommitment(req.params.id);
+  const commitment = await getCommitment(req.params.id, { baselineOnly: true });
   if (!commitment) {
     req.flash("error", "Future commitment not found.");
     res.redirect("/commitments");
@@ -154,7 +154,7 @@ export const newCommitmentEntry = async (req: Request, res: Response) => {
 };
 
 export const createCommitmentEntry = async (req: Request, res: Response) => {
-  const commitment = await getCommitment(req.params.id);
+  const commitment = await getCommitment(req.params.id, { baselineOnly: true });
   const parsed = commitmentEntrySchema.safeParse(req.body);
   if (!commitment) {
     req.flash("error", "Future commitment not found.");

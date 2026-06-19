@@ -1,16 +1,17 @@
 import {
   and,
   asc,
-  count,
   desc,
   eq,
   inArray,
   SQL
 } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import { db } from "../db/index.js";
 import {
   accounts,
   categories,
+  futureCommitments,
   payees,
   scenarioAccounts,
   scenarioAdjustments,
@@ -68,7 +69,11 @@ export const listScenarios = async (options?: { includeInactive?: boolean }) => 
 
   return Promise.all([
     db.select().from(scenarios).where(baseWhere.length ? and(...baseWhere) : undefined).orderBy(desc(scenarios.updatedAt)),
-    db.select({ scenarioId: scenarioAccounts.scenarioId, accountCount: count() }).from(scenarioAccounts).groupBy(scenarioAccounts.scenarioId)
+    db
+      .select({ scenarioId: futureCommitments.scenarioId, accountCount: sql<number>`count(distinct ${futureCommitments.accountId})::int` })
+      .from(futureCommitments)
+      .where(sql`${futureCommitments.scenarioId} is not null and ${futureCommitments.accountId} is not null`)
+      .groupBy(futureCommitments.scenarioId)
   ]).then(([rows, counts]) => {
     const countsByScenario = new Map(counts.map((item) => [item.scenarioId, Number(item.accountCount)]));
     return rows.map((scenario) => ({
@@ -171,16 +176,29 @@ export const listScenarioAdjustments = async (scenarioId: string, options?: { ac
 };
 
 export const getScenarioAccountOptions = async (scenarioId: string) =>
-  db
-    .select({
-      id: accounts.id,
-      name: accounts.name,
-      type: accounts.type
-    })
-    .from(scenarioAccounts)
-    .innerJoin(accounts, eq(scenarioAccounts.accountId, accounts.id))
-    .where(and(eq(scenarioAccounts.scenarioId, scenarioId), eq(accounts.active, true)))
-    .orderBy(accounts.name);
+  Promise.all([
+    db
+      .select({
+        id: accounts.id,
+        name: accounts.name,
+        type: accounts.type
+      })
+      .from(scenarioAccounts)
+      .innerJoin(accounts, eq(scenarioAccounts.accountId, accounts.id))
+      .where(and(eq(scenarioAccounts.scenarioId, scenarioId), eq(accounts.active, true))),
+    db
+      .selectDistinct({
+        id: accounts.id,
+        name: accounts.name,
+        type: accounts.type
+      })
+      .from(futureCommitments)
+      .innerJoin(accounts, eq(futureCommitments.accountId, accounts.id))
+      .where(and(eq(futureCommitments.scenarioId, scenarioId), eq(accounts.active, true)))
+  ]).then(([linkedRows, commitmentRows]) => {
+    const byId = new Map([...linkedRows, ...commitmentRows].map((account) => [account.id, account]));
+    return [...byId.values()].sort((left, right) => left.name.localeCompare(right.name));
+  });
 
 export const getScenarioAdjustment = async (scenarioId: string, adjustmentId: string) => {
   const [adjustment] = await db
@@ -229,12 +247,14 @@ export const listActiveScenarioIdsForAccount = async (accountId: string, scenari
   const rows = await db
     .select({ id: scenarios.id })
     .from(scenarios)
-    .innerJoin(scenarioAccounts, eq(scenarioAccounts.scenarioId, scenarios.id))
+    .innerJoin(futureCommitments, eq(futureCommitments.scenarioId, scenarios.id))
     .where(
       and(
         eq(scenarios.active, true),
-        eq(scenarioAccounts.accountId, accountId),
-        inArray(scenarios.id, selectedIds)
+        eq(futureCommitments.accountId, accountId),
+        inArray(scenarios.id, selectedIds),
+        eq(futureCommitments.includeInBaseline, false),
+        eq(futureCommitments.active, true)
       )
     )
     .orderBy(scenarios.name);

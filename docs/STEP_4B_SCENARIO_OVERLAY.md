@@ -1,12 +1,14 @@
 # Step 4B — Scenario Overlay
 
+> Historical note: Step 4.5 supersedes the scenario-adjustment overlay model. Forecast overlays now use active scenario-only future commitments. Promoted scenario commitments are baseline items and are not double-counted. See `docs/STEP_4_5_SCENARIO_COMMITMENTS.md`.
+
 ## Purpose
 
-Step 4B adds scenario selection to the existing forecast page so users can preview stacked what-if adjustments on top of the baseline projection without changing Step 4A data model or workflow behavior.
+Step 4B added scenario selection to the existing forecast page so users could preview stacked what-if adjustments on top of the baseline projection without changing the original Step 4A data model or workflow behavior.
 
 ## Scope
 
-In scope:
+Historical scope:
 - forecast query parameter handling for scenario selection
 - scenario option loading per account
 - merge of selected scenario adjustments into projection items
@@ -21,13 +23,14 @@ Out of scope:
 
 The forecast page now accepts multiple selected scenario IDs. When none are selected, the projection behaves as before.
 
-When scenarios are selected:
+Current Step 4.5 behavior when scenarios are selected:
 - baseline items are unchanged
-- only active scenarios linked to the selected account are accepted
-- scenario adjustments for the selected account are merged on top
-- scenario adjustments appear in the projection table
+- only active scenarios with active scenario-only commitments for the selected account are accepted
+- scenario commitments for the selected account are merged on top
+- scenario commitments appear in the projection table
 - warning balances and low/high summaries include scenario amounts
 - archived scenario IDs are ignored, including when passed manually in query params
+- promoted scenario commitments are included through the baseline forecast and are not double-counted as overlay rows
 
 ## Same-Day Ordering
 
@@ -36,26 +39,26 @@ Same-day projection order remains unchanged from Step 3:
 1. future_commitment
 2. transfer
 3. future_transaction
-4. scenario_adjustment
+4. scenario_commitment
 
 This preserves the existing financial behavior while only adding scenario effects after known future items.
 
 ## Multi-Account Scoping
 
-Only active scenarios linked to the projected account through scenario_accounts are eligible for selection. The controller loads options from that intersection, and the projection service re-checks active/account eligibility before applying any scenario adjustments.
+Only active scenarios with at least one active scenario-only commitment for the projected account are eligible for selection. Legacy `scenario_accounts` links do not make a scenario selectable by themselves. The controller loads options from that commitment-backed intersection, and the projection service re-checks eligibility before applying overlay items.
 
 ## User Flow
 
 1. Open an account forecast page.
-2. If the account has linked scenarios, a scenario multi-select appears.
+2. If the account has eligible scenario-only commitments, a scenario multi-select appears.
 3. Select one or more scenarios and submit.
-4. The page reloads with merged scenario items.
+4. The page reloads with merged scenario commitment items.
 5. The page shows "Scenario overlay active" only for accepted active scenarios.
 6. Clear all selected scenarios to return to baseline.
 
 ## Relationship to Other Steps
 
-Step 4B depends on Step 4A tables and services. It does not modify register, import, transfer, or commitment behavior.
+Step 4B historically depended on Step 4A tables and services. Current behavior depends on Step 4.5 scenario commitments. It does not modify register, import, transfer, or commitment entry behavior.
 
 ## Validation
 

@@ -16,17 +16,21 @@ import {
   updateScenarioController
 } from "../controllers/scenarioEditor.controller.js";
 import {
-  createScenarioAdjustment,
-  deleteScenarioAdjustment,
   getScenario,
-  getScenarioAdjustment,
   getScenarioAccountOptions,
-  listScenarioAdjustments,
-  updateScenarioAdjustment
 } from "../services/scenarios.service.js";
+import {
+  archiveScenarioCommitment,
+  createScenarioCommitment,
+  getScenarioCommitment,
+  listScenarioCommitments,
+  promoteScenarioCommitment,
+  updateScenarioCommitment
+} from "../services/futureCommitments.service.js";
+import { commitmentFrequencies, firstValidationMessage, futureCommitmentSchema } from "../validation/forms.js";
 
 const flashValidationError = (req: Request, error: unknown) => {
-  req.flash("error", error instanceof Error ? error.message : "Could not save adjustment.");
+  req.flash("error", error instanceof Error ? error.message : "Could not save scenario item.");
 };
 
 const activeAccounts = async () =>
@@ -50,6 +54,20 @@ const activeCategories = async () =>
     .where(eq(categories.active, true))
     .orderBy(categories.name);
 
+const itemFormData = async () => ({
+  accounts: await activeAccounts(),
+  payees: await activePayees(),
+  categories: await activeCategories(),
+  frequencies: commitmentFrequencies
+});
+
+const parseScenarioItem = (body: unknown) => {
+  const parsed = futureCommitmentSchema.safeParse(body);
+  if (!parsed.success) throw new Error(firstValidationMessage(parsed.error));
+  if (!parsed.data.accountId) throw new Error("Scenario item account is required.");
+  return parsed.data;
+};
+
 export const scenariosRoutes = Router();
 
 scenariosRoutes.use(requireAuth);
@@ -70,7 +88,7 @@ scenariosRoutes.get("/:id", async (req, res, next) => {
       view: "scenarios/detail",
       scenario,
       accounts: await getScenarioAccountOptions(scenario.id),
-      adjustments: await listScenarioAdjustments(scenario.id)
+      items: await listScenarioCommitments(scenario.id)
     });
   } catch (error) {
     next(error);
@@ -89,8 +107,7 @@ scenariosRoutes.get("/:id/edit", async (req, res, next) => {
       title: "Edit Scenario",
       view: "scenarios/form",
       scenario,
-      accounts: await activeAccounts(),
-      adjustments: await listScenarioAdjustments(scenario.id)
+      items: await listScenarioCommitments(scenario.id)
     });
   } catch (error) {
     next(error);
@@ -100,7 +117,7 @@ scenariosRoutes.get("/:id/edit", async (req, res, next) => {
 scenariosRoutes.post("/:id", updateScenarioController);
 scenariosRoutes.post("/:id/archive", archiveScenarioController);
 
-scenariosRoutes.get("/:id/adjustments/new", async (req, res, next) => {
+scenariosRoutes.get("/:id/items/new", async (req, res, next) => {
   try {
     const scenario = await getScenario(req.params.id);
     if (!scenario) {
@@ -109,96 +126,99 @@ scenariosRoutes.get("/:id/adjustments/new", async (req, res, next) => {
       return;
     }
     res.render("layout", {
-      title: "New Adjustment",
-      view: "scenarios/adjustment-form",
+      title: "Add Scenario Item",
+      view: "scenarios/item-form",
       scenario,
-      adjustment: { date: new Date().toISOString().slice(0, 10), amount: "", description: "", notes: "" },
-      accounts: await getScenarioAccountOptions(scenario.id),
-      payees: await activePayees(),
-      categories: await activeCategories()
+      item: {
+        startDate: new Date().toISOString().slice(0, 10),
+        nextDueDate: new Date().toISOString().slice(0, 10),
+        frequency: "monthly",
+        active: true
+      },
+      ...(await itemFormData())
     });
   } catch (error) {
     next(error);
   }
 });
 
-scenariosRoutes.post("/:id/adjustments", async (req, res, next) => {
+scenariosRoutes.post("/:id/items", async (req, res, next) => {
   try {
-    await createScenarioAdjustment({
+    const data = parseScenarioItem(req.body);
+    await createScenarioCommitment({
       scenarioId: req.params.id,
-      accountId: req.body.accountId,
-      date: req.body.date,
-      amount: req.body.amount,
-      payeeId: req.body.payeeId || null,
-      categoryId: req.body.categoryId || null,
-      description: req.body.description || null,
-      notes: req.body.notes || null
+      ...data
     });
-    req.flash("success", "Adjustment added.");
+    req.flash("success", "Scenario item added.");
     res.redirect(`/scenarios/${req.params.id}`);
   } catch (error) {
     flashValidationError(req, error);
-    res.redirect(`/scenarios/${req.params.id}/adjustments/new`);
+    res.redirect(`/scenarios/${req.params.id}/items/new`);
   }
 });
 
-scenariosRoutes.get("/:id/adjustments/:adjustmentId/edit", async (req, res, next) => {
+scenariosRoutes.get("/:id/items/:itemId/edit", async (req, res, next) => {
   try {
     const scenario = await getScenario(req.params.id);
-    const adjustment = await getScenarioAdjustment(req.params.id, req.params.adjustmentId);
-    if (!scenario || !adjustment) {
-      req.flash("error", "Adjustment not found.");
+    const item = await getScenarioCommitment(req.params.id, req.params.itemId);
+    if (!scenario || !item) {
+      req.flash("error", "Scenario item not found.");
       res.redirect(`/scenarios/${req.params.id}`);
       return;
     }
     res.render("layout", {
-      title: "Edit Adjustment",
-      view: "scenarios/adjustment-form",
+      title: "Edit Scenario Item",
+      view: "scenarios/item-form",
       scenario,
-      adjustment,
-      accounts: await getScenarioAccountOptions(req.params.id),
-      payees: await activePayees(),
-      categories: await activeCategories()
+      item,
+      ...(await itemFormData())
     });
   } catch (error) {
     next(error);
   }
 });
 
-scenariosRoutes.post("/:id/adjustments/:adjustmentId", async (req, res, next) => {
+scenariosRoutes.post("/:id/items/:itemId", async (req, res, next) => {
   try {
-    await updateScenarioAdjustment(req.params.id, req.params.adjustmentId, {
-      accountId: req.body.accountId,
-      date: req.body.date,
-      amount: req.body.amount,
-      payeeId: req.body.payeeId || null,
-      categoryId: req.body.categoryId || null,
-      description: req.body.description || null,
-      notes: req.body.notes || null
-    });
-    req.flash("success", "Adjustment updated.");
+    const data = parseScenarioItem(req.body);
+    await updateScenarioCommitment(req.params.id, req.params.itemId, data);
+    req.flash("success", "Scenario item updated.");
     res.redirect(`/scenarios/${req.params.id}`);
   } catch (error) {
     flashValidationError(req, error);
-    res.redirect(`/scenarios/${req.params.id}/adjustments/${req.params.adjustmentId}/edit`);
+    res.redirect(`/scenarios/${req.params.id}/items/${req.params.itemId}/edit`);
   }
 });
 
 scenariosRoutes.post(
-  "/:id/adjustments/:adjustmentId/delete",
+  "/:id/items/:itemId/archive",
   async (req, res, next) => {
     try {
-      const existing = await getScenarioAdjustment(req.params.id, req.params.adjustmentId);
+      const existing = await getScenarioCommitment(req.params.id, req.params.itemId);
       if (!existing) {
-        req.flash("error", "Adjustment not found.");
+        req.flash("error", "Scenario item not found.");
         res.redirect(`/scenarios/${req.params.id}`);
         return;
       }
-      await deleteScenarioAdjustment(req.params.id, req.params.adjustmentId);
-      req.flash("success", "Adjustment removed.");
+      await archiveScenarioCommitment(req.params.id, req.params.itemId);
+      req.flash("success", "Scenario item archived.");
       res.redirect(`/scenarios/${req.params.id}`);
     } catch (error) {
       next(error);
     }
   }
 );
+
+scenariosRoutes.post("/:id/items/:itemId/promote", async (req, res, next) => {
+  try {
+    const [promoted] = await promoteScenarioCommitment(req.params.id, req.params.itemId);
+    if (!promoted) {
+      req.flash("error", "Scenario item could not be promoted.");
+    } else {
+      req.flash("success", "Scenario item included in baseline.");
+    }
+    res.redirect(`/scenarios/${req.params.id}`);
+  } catch (error) {
+    next(error);
+  }
+});

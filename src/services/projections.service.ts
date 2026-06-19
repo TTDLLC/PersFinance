@@ -1,13 +1,13 @@
 import { and, asc, eq, gt, inArray, isNull, lte, ne } from "drizzle-orm";
 import { db } from "../db/index.js";
-import { accounts, categories, futureCommitments, payees, scenarioAdjustments, transactions } from "../db/schema.js";
+import { accounts, categories, futureCommitments, payees, transactions } from "../db/schema.js";
 import { advanceDueDate, isoToday } from "./futureCommitments.service.js";
 import { listActiveScenarioIdsForAccount } from "./scenarios.service.js";
 
 export const projectionWindows = [30, 60, 90] as const;
 export type ProjectionWindowDays = (typeof projectionWindows)[number];
 
-export type ProjectionItemSource = "future_commitment" | "transfer" | "future_transaction" | "scenario_adjustment";
+export type ProjectionItemSource = "future_commitment" | "transfer" | "future_transaction" | "scenario_commitment";
 
 export type ProjectionItem = {
   id: string;
@@ -58,7 +58,7 @@ const sourceOrder: Record<ProjectionItemSource, number> = {
   future_commitment: 1,
   transfer: 2,
   future_transaction: 3,
-  scenario_adjustment: 4
+  scenario_commitment: 4
 };
 
 const assetAccountTypes = new Set<typeof accounts.$inferSelect.type>(["checking", "savings", "cash"]);
@@ -165,6 +165,7 @@ const getFutureCommitmentItems = async (accountId: string, asOfDate: string, win
     .where(
       and(
         eq(futureCommitments.accountId, accountId),
+        eq(futureCommitments.includeInBaseline, true),
         eq(futureCommitments.active, true),
         lte(futureCommitments.nextDueDate, windowEndDate)
       )
@@ -208,46 +209,70 @@ const getFutureCommitmentItems = async (accountId: string, asOfDate: string, win
   return items;
 };
 
-const getScenarioAdjustmentItems = async (accountId: string, asOfDate: string, windowEndDate: string, scenarioIds: string[]): Promise<RawProjectionItem[]> => {
+const getScenarioCommitmentItems = async (accountId: string, asOfDate: string, windowEndDate: string, scenarioIds: string[]): Promise<RawProjectionItem[]> => {
   if (!scenarioIds.length) return [];
 
   const rows = await db
     .select({
-      id: scenarioAdjustments.id,
-      scenarioId: scenarioAdjustments.scenarioId,
-      date: scenarioAdjustments.date,
-      amount: scenarioAdjustments.amount,
-      description: scenarioAdjustments.description,
+      id: futureCommitments.id,
+      scenarioId: futureCommitments.scenarioId,
+      name: futureCommitments.name,
+      amount: futureCommitments.amount,
+      frequency: futureCommitments.frequency,
+      nextDueDate: futureCommitments.nextDueDate,
+      endDate: futureCommitments.endDate,
       payeeName: payees.name,
       categoryName: categories.name
     })
-    .from(scenarioAdjustments)
-    .leftJoin(payees, eq(scenarioAdjustments.payeeId, payees.id))
-    .leftJoin(categories, eq(scenarioAdjustments.categoryId, categories.id))
+    .from(futureCommitments)
+    .leftJoin(payees, eq(futureCommitments.payeeId, payees.id))
+    .leftJoin(categories, eq(futureCommitments.categoryId, categories.id))
     .where(
       and(
-        eq(scenarioAdjustments.accountId, accountId),
-        inArray(scenarioAdjustments.scenarioId, scenarioIds),
-        lte(scenarioAdjustments.date, windowEndDate),
-        gt(scenarioAdjustments.date, asOfDate)
+        eq(futureCommitments.accountId, accountId),
+        inArray(futureCommitments.scenarioId, scenarioIds),
+        eq(futureCommitments.includeInBaseline, false),
+        eq(futureCommitments.active, true),
+        lte(futureCommitments.nextDueDate, windowEndDate)
       )
     );
 
-  return rows
-    .map((row) => ({
-      id: `${row.scenarioId}:${row.id}`,
-      source: "scenario_adjustment" as ProjectionItemSource,
-      date: row.date,
-      amountCents: toCents(row.amount),
-      name: row.description ?? (row.payeeName ?? "Scenario adjustment"),
-      payeeName: row.payeeName,
-      categoryName: row.categoryName,
-      status: null,
-      transactionId: null,
-      transferId: null,
-      commitmentId: null,
-      scenarioId: row.scenarioId
-    }));
+  const items: RawProjectionItem[] = [];
+
+  for (const row of rows) {
+    let occurrenceDate = row.nextDueDate;
+    while (occurrenceDate <= asOfDate) {
+      const nextDueDate = advanceDueDate(occurrenceDate, row.frequency);
+      if (!nextDueDate) {
+        occurrenceDate = "";
+        break;
+      }
+      occurrenceDate = nextDueDate;
+    }
+
+    while (occurrenceDate && occurrenceDate <= windowEndDate && (!row.endDate || occurrenceDate <= row.endDate)) {
+      items.push({
+        id: `${row.scenarioId}:${row.id}:${occurrenceDate}`,
+        source: "scenario_commitment",
+        date: occurrenceDate,
+        amountCents: toCents(row.amount),
+        name: row.name,
+        payeeName: row.payeeName,
+        categoryName: row.categoryName,
+        status: null,
+        transactionId: null,
+        transferId: null,
+        commitmentId: row.id,
+        scenarioId: row.scenarioId
+      });
+
+      const nextDueDate = advanceDueDate(occurrenceDate, row.frequency);
+      if (!nextDueDate) break;
+      occurrenceDate = nextDueDate;
+    }
+  }
+
+  return items;
 };
 
 export const getAccountProjection = async (accountId: string, input: ProjectionInput = {}): Promise<AccountProjection | null> => {
@@ -274,7 +299,7 @@ export const getAccountProjection = async (accountId: string, input: ProjectionI
     ...(await getFutureTransactionItems(account.id, asOfDate, windowEndDate))
   ];
 
-  const scenarioItems = await getScenarioAdjustmentItems(account.id, asOfDate, windowEndDate, selectedScenarioIds);
+  const scenarioItems = await getScenarioCommitmentItems(account.id, asOfDate, windowEndDate, selectedScenarioIds);
   const allItems = [...baselineItems, ...scenarioItems].sort(compareItems);
 
   let runningBalanceCents = projectionStartBalanceCents;

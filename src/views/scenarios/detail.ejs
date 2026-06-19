@@ -5,7 +5,7 @@
   </div>
   <div class="form-actions">
     <a class="button secondary-button" href="/scenarios">Back to Scenarios</a>
-    <a class="button" href="/scenarios/<%= scenario.id %>/adjustments/new">New Adjustment</a>
+    <a class="button" href="/scenarios/<%= scenario.id %>/items/new">Add Scenario Item</a>
   </div>
 </section>
 
@@ -43,39 +43,53 @@
   </div>
   <div>
     <section class="card">
-      <h2>Adjustments</h2>
+      <h2>Scenario Items</h2>
       <table>
         <thead>
           <tr>
-            <th>Date</th>
+            <th>Next</th>
             <th>Account</th>
             <th>Amount</th>
-            <th>Description</th>
+            <th>Name</th>
+            <th>Frequency</th>
             <th>Category</th>
             <th>Payee</th>
+            <th>Status</th>
             <th class="actions">Actions</th>
           </tr>
         </thead>
         <tbody>
-          <% if (!adjustments || !adjustments.length) { %>
+          <% if (!items || !items.length) { %>
             <tr>
-              <td class="empty-state" colspan="7">No adjustments yet.</td>
+              <td class="empty-state" colspan="9">No scenario items yet.</td>
             </tr>
           <% } else { %>
-            <% adjustments.forEach((adjustment) => { %>
-              <tr>
-                <td><%= adjustment.date %></td>
-                <td><%= adjustment.accountName || adjustment.accountId %></td>
-                <td class="<%= signedClass(adjustment.amount) %>"><%= accountingMoney(adjustment.amount) %></td>
-                <td><%= adjustment.description || '' %></td>
-                <td><%= adjustment.categoryName || '' %></td>
-                <td><%= adjustment.payeeName || '' %></td>
+            <% items.forEach((item) => { %>
+              <tr class="<%= item.active ? "" : "muted" %>">
+                <td><%= item.nextDueDate %></td>
+                <td><%= item.accountName || item.accountId || "Unassigned" %></td>
+                <td class="<%= signedClass(item.amount) %>"><%= accountingMoney(item.amount) %></td>
+                <td><%= item.name || '' %></td>
+                <td><%= label(item.frequency) %></td>
+                <td><%= item.categoryName || '' %></td>
+                <td><%= item.payeeName || '' %></td>
+                <td>
+                  <span class="status"><%= item.includeInBaseline ? "Included in Baseline" : "Scenario Only" %></span>
+                  <% if (!item.active) { %><span class="status">Archived</span><% } %>
+                </td>
                 <td class="actions">
                   <div class="account-actions">
-                    <a class="small-button" href="/scenarios/<%= scenario.id %>/adjustments/<%= adjustment.id %>/edit">Edit</a>
-                    <form method="post" action="/scenarios/<%= scenario.id %>/adjustments/<%= adjustment.id %>/delete" onsubmit="return confirm('Delete this scenario adjustment?');">
-                      <button class="small-button" type="submit">Delete</button>
-                    </form>
+                    <a class="small-button" href="/scenarios/<%= scenario.id %>/items/<%= item.id %>/edit">Edit</a>
+                    <% if (item.active && !item.includeInBaseline) { %>
+                      <form method="post" action="/scenarios/<%= scenario.id %>/items/<%= item.id %>/promote">
+                        <button class="small-button" type="submit">Promote</button>
+                      </form>
+                    <% } %>
+                    <% if (item.active) { %>
+                      <form method="post" action="/scenarios/<%= scenario.id %>/items/<%= item.id %>/archive" onsubmit="return confirm('Archive this scenario item?');">
+                        <button class="small-button" type="submit">Archive</button>
+                      </form>
+                    <% } %>
                   </div>
                 </td>
               </tr>
@@ -84,7 +98,7 @@
         </tbody>
       </table>
       <p class="form-actions">
-        <a class="button" href="/scenarios/<%= scenario.id %>/adjustments/new">New Adjustment</a>
+        <a class="button" href="/scenarios/<%= scenario.id %>/items/new">Add Scenario Item</a>
         <% if (accounts && accounts.length) { %>
           <a class="button secondary-button" href="/accounts/<%= accounts[0].id %>/forecast">Back to Forecast</a>
         <% } %>

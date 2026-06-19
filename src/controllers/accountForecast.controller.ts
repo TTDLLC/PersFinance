@@ -1,7 +1,7 @@
 import type { Request, Response } from "express";
 import { and, eq } from "drizzle-orm";
 import { db } from "../db/index.js";
-import { scenarioAccounts, scenarios } from "../db/schema.js";
+import { futureCommitments, scenarios } from "../db/schema.js";
 import { getAccountProjection, projectionWindows } from "../services/projections.service.js";
 
 const selectedWindowDays = (value: unknown) => {
@@ -31,14 +31,21 @@ export const showAccountForecast = async (req: Request, res: Response) => {
   }
 
   const scenarioOptions = await db
-    .select({
+    .selectDistinct({
       id: scenarios.id,
       name: scenarios.name,
       active: scenarios.active
     })
     .from(scenarios)
-    .innerJoin(scenarioAccounts, eq(scenarioAccounts.scenarioId, scenarios.id))
-    .where(and(eq(scenarios.active, true), eq(scenarioAccounts.accountId, accountId)))
+    .innerJoin(futureCommitments, eq(futureCommitments.scenarioId, scenarios.id))
+    .where(
+      and(
+        eq(scenarios.active, true),
+        eq(futureCommitments.accountId, accountId),
+        eq(futureCommitments.includeInBaseline, false),
+        eq(futureCommitments.active, true)
+      )
+    )
     .orderBy(scenarios.name);
 
   res.render("layout", {

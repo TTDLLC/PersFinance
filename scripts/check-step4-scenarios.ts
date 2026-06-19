@@ -4,11 +4,9 @@ import { app } from "../src/app.js";
 import { db, pool } from "../src/db/index.js";
 import { accounts, accountStatements, futureCommitments, scenarioAccounts, scenarioAdjustments, scenarios, transactions, users } from "../src/db/schema.js";
 import {
-  archiveScenario,
-  createScenario,
-  createScenarioAdjustment,
-  listScenarioAdjustments
+  createScenario
 } from "../src/services/scenarios.service.js";
+import { createScenarioCommitment, listScenarioCommitments } from "../src/services/futureCommitments.service.js";
 import { getAccountProjection } from "../src/services/projections.service.js";
 import { Accounts } from "../src/services/accounts.service.js";
 
@@ -160,20 +158,19 @@ const main = async () => {
         name: `${scenarioPrefix} Windfall`,
         description: "Extra income scenario",
         notes: "",
-        active: "on",
-        accountIds: checking.id
+        active: "on"
       })
     );
     assert(createResponse.status === 302, "POST create scenario through HTTP should redirect.");
     const scenario = await getScenarioByName(`${scenarioPrefix} Windfall`);
     const createdLinks = await db.select().from(scenarioAccounts).where(eq(scenarioAccounts.scenarioId, scenario.id));
-    assert(createdLinks.length === 1 && createdLinks[0].accountId === checking.id, "HTTP create with one selected account should create exactly one link.");
+    assert(createdLinks.length === 0, "HTTP create should allow scenarios without account links.");
 
     const detail = await getHtml(`${server.baseUrl}/scenarios/${scenario.id}`, cookie);
-    assert(detail.response.status === 200 && detail.html.includes(`${accountPrefix} Checking`), "Scenario detail should load and show account name.");
+    assert(detail.response.status === 200 && detail.html.includes("Add Scenario Item"), "Scenario detail should load as the planning workspace.");
 
     const edit = await getHtml(`${server.baseUrl}/scenarios/${scenario.id}/edit`, cookie);
-    assert(edit.response.status === 200 && edit.html.includes(`value="${checking.id}" checked`), "Edit scenario page should pre-check linked accounts.");
+    assert(edit.response.status === 200 && !edit.html.includes('name="accountIds"'), "Edit scenario page should not require account checkboxes.");
 
     await postForm(
       `${server.baseUrl}/scenarios/${scenario.id}`,
@@ -183,89 +180,91 @@ const main = async () => {
         description: "",
         notes: "",
         active: "on",
-        accountIds: savings.id
       })
     );
     let links = await db.select().from(scenarioAccounts).where(eq(scenarioAccounts.scenarioId, scenario.id));
-    assert(links.length === 1 && links[0].accountId === savings.id, "HTTP update with one account should replace links correctly.");
-
-    const multiAccountUpdate = new URLSearchParams({
-      name: `${scenarioPrefix} Windfall`,
-      description: "",
-      notes: "",
-      active: "on"
-    });
-    multiAccountUpdate.append("accountIds", checking.id);
-    multiAccountUpdate.append("accountIds", savings.id);
-    await postForm(`${server.baseUrl}/scenarios/${scenario.id}`, cookie, multiAccountUpdate);
-    links = await db.select().from(scenarioAccounts).where(eq(scenarioAccounts.scenarioId, scenario.id));
-    assert(links.length === 2, "HTTP update with multiple accounts should store both links.");
+    assert(links.length === 0, "HTTP update should preserve metadata-only scenario account model.");
 
     await postForm(
-      `${server.baseUrl}/scenarios/${scenario.id}/adjustments`,
+      `${server.baseUrl}/scenarios/${scenario.id}/items`,
       cookie,
       new URLSearchParams({
+        name: "Bonus",
         accountId: checking.id,
-        date: "2026-06-20",
         amount: "200.00",
-        description: "Bonus",
+        frequency: "once",
+        nextDueDate: "2026-06-20",
+        startDate: "2026-06-20",
+        endDate: "2026-06-20",
         notes: "",
         payeeId: "",
-        categoryId: ""
+        categoryId: "",
+        active: "true"
       })
     );
-    let adjustments = await listScenarioAdjustments(scenario.id);
-    assert(adjustments.length === 1 && adjustments[0].accountName === `${accountPrefix} Checking`, "Add adjustment through HTTP should persist named account detail.");
+    let items = await listScenarioCommitments(scenario.id);
+    assert(items.length === 1 && items[0].accountName === `${accountPrefix} Checking`, "Add scenario item through HTTP should persist named account detail.");
 
     await postForm(
-      `${server.baseUrl}/scenarios/${scenario.id}/adjustments/${adjustments[0].id}`,
+      `${server.baseUrl}/scenarios/${scenario.id}/items/${items[0].id}`,
       cookie,
       new URLSearchParams({
+        name: "Bigger bonus",
         accountId: checking.id,
-        date: "2026-06-21",
         amount: "225.00",
-        description: "Bigger bonus",
+        frequency: "once",
+        nextDueDate: "2026-06-21",
+        startDate: "2026-06-21",
+        endDate: "2026-06-21",
         notes: "",
         payeeId: "",
-        categoryId: ""
+        categoryId: "",
+        active: "true"
       })
     );
-    adjustments = await listScenarioAdjustments(scenario.id);
-    assert(adjustments[0].amount === "225.00" && adjustments[0].date === "2026-06-21", "Edit adjustment through HTTP should update date and amount.");
+    items = await listScenarioCommitments(scenario.id);
+    assert(items[0].amount === "225.00" && items[0].nextDueDate === "2026-06-21", "Edit scenario item through HTTP should update date and amount.");
 
-    await postForm(`${server.baseUrl}/scenarios/${scenario.id}/adjustments/${adjustments[0].id}/delete`, cookie, new URLSearchParams());
-    assert((await listScenarioAdjustments(scenario.id)).length === 0, "Delete adjustment through HTTP should remove the row.");
+    await postForm(`${server.baseUrl}/scenarios/${scenario.id}/items/${items[0].id}/archive`, cookie, new URLSearchParams());
+    assert((await listScenarioCommitments(scenario.id))[0].active === false, "Archive scenario item through HTTP should retain but deactivate the row.");
 
-    await createScenarioAdjustment({
+    await createScenarioCommitment({
       scenarioId: scenario.id,
+      name: "Bonus",
       accountId: checking.id,
-      date: "2026-06-20",
+      nextDueDate: "2026-06-20",
+      startDate: "2026-06-20",
+      endDate: "2026-06-20",
+      frequency: "once",
       amount: "200.00",
-      description: "Bonus"
     });
     const repair = await createScenario({
       name: `${scenarioPrefix} Car Repair`,
-      description: "Expense scenario",
-      accountIds: [checking.id]
+      description: "Expense scenario"
     });
-    await createScenarioAdjustment({
+    await createScenarioCommitment({
       scenarioId: repair.id,
+      name: "Brake job",
       accountId: checking.id,
-      date: "2026-06-20",
+      nextDueDate: "2026-06-20",
+      startDate: "2026-06-20",
+      endDate: "2026-06-20",
+      frequency: "once",
       amount: "-150.00",
-      description: "Brake job"
     });
     const archived = await createScenario({
       name: `${scenarioPrefix} Archived`,
-      description: "Archived scenario",
-      accountIds: [checking.id]
+      description: "Archived scenario"
     });
-    await createScenarioAdjustment({
+    await createScenarioCommitment({
       scenarioId: archived.id,
+      name: "Archived money",
       accountId: checking.id,
-      date: "2026-06-20",
+      nextDueDate: "2026-06-20",
+      startDate: "2026-06-20",
+      endDate: "2026-06-20",
+      frequency: "once",
       amount: "999.00",
-      description: "Archived money"
     });
 
     await postForm(`${server.baseUrl}/scenarios/${archived.id}/archive`, cookie, new URLSearchParams());
@@ -280,7 +279,7 @@ const main = async () => {
     const beforeCounts = await countRows(checking.id);
     const baseline = await getAccountProjection(checking.id, { asOfDate: "2026-06-17", windowDays: 30 });
     assert(baseline?.mode === "baseline", "Forecast baseline should remain baseline without scenario IDs.");
-    assert(!baseline?.items.some((item) => item.source === "scenario_adjustment"), "Forecast baseline should have no scenario items.");
+    assert(!baseline?.items.some((item) => item.source === "scenario_commitment"), "Forecast baseline should have no scenario-only items.");
 
     const oneScenario = await getAccountProjection(checking.id, {
       asOfDate: "2026-06-17",
@@ -288,7 +287,7 @@ const main = async () => {
       scenarioIds: [scenario.id]
     });
     assert(oneScenario?.mode === "scenario", "Forecast with one active selected scenario should enter scenario mode.");
-    assert(oneScenario?.items.some((item) => item.name === "Bonus"), "Forecast with one active scenario should include its adjustment.");
+    assert(oneScenario?.items.some((item) => item.name === "Bonus"), "Forecast with one active scenario should include its scenario item.");
 
     const stacked = await getAccountProjection(checking.id, {
       asOfDate: "2026-06-17",
@@ -296,8 +295,8 @@ const main = async () => {
       scenarioIds: [scenario.id, repair.id]
     });
     assert(
-      stacked?.items.filter((item) => item.source === "scenario_adjustment").length === 2,
-      "Forecast with two selected active scenarios should stack both adjustments."
+      stacked?.items.filter((item) => item.source === "scenario_commitment").length === 2,
+      "Forecast with two selected active scenarios should stack both scenario items."
     );
 
     const archivedProjection = await getAccountProjection(checking.id, {
@@ -306,7 +305,7 @@ const main = async () => {
       scenarioIds: [archived.id]
     });
     assert(archivedProjection?.mode === "baseline", "Passing an archived scenario ID should not enable scenario mode.");
-    assert(!archivedProjection?.items.some((item) => item.name === "Archived money"), "Archived scenario adjustments should not apply.");
+    assert(!archivedProjection?.items.some((item) => item.name === "Archived money"), "Archived scenario items should not apply.");
 
     const afterCounts = await countRows(checking.id);
     assert(beforeCounts.transactions === afterCounts.transactions, "Projection calls should not mutate transaction count.");
