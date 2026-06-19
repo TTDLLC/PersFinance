@@ -18,6 +18,7 @@
     "test:forecast": "npm run build && node dist/scripts/check-forecast.js",
     "test:import": "npm run build && node dist/scripts/check-import.js",
     "test:step4-scenarios": "npm run build && node dist/scripts/check-step4-scenarios.js",
+    "test:step4-5-scenario-commitments": "npm run build && node dist/scripts/check-step4-5-scenario-commitments.js",
     "test:large-import": "npm run build && node dist/scripts/check-large-import.js"
   },
   "dependencies": {

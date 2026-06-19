@@ -244,6 +244,8 @@ export const futureCommitments = pgTable(
     payeeId: uuid("payee_id").references(() => payees.id, { onDelete: "set null" }),
     categoryId: uuid("category_id").references(() => categories.id, { onDelete: "set null" }),
     accountId: uuid("account_id").references(() => accounts.id, { onDelete: "set null" }),
+    scenarioId: uuid("scenario_id").references(() => scenarios.id, { onDelete: "cascade" }),
+    includeInBaseline: boolean("include_in_baseline").notNull().default(true),
     amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
     frequency: commitmentFrequencyEnum("frequency").notNull(),
     nextDueDate: date("next_due_date").notNull(),
@@ -254,8 +256,10 @@ export const futureCommitments = pgTable(
     ...timestamps
   },
   (table) => ({
-    dueIdx: index("future_commitments_due_idx").on(table.active, table.nextDueDate),
-    accountDueIdx: index("future_commitments_account_due_idx").on(table.accountId, table.active, table.nextDueDate),
+    dueIdx: index("future_commitments_due_idx").on(table.includeInBaseline, table.active, table.nextDueDate),
+    accountDueIdx: index("future_commitments_account_due_idx").on(table.accountId, table.includeInBaseline, table.active, table.nextDueDate),
+    scenarioIdx: index("future_commitments_scenario_idx").on(table.scenarioId),
+    scenarioBaselineIdx: index("future_commitments_scenario_baseline_idx").on(table.scenarioId, table.includeInBaseline),
     dateRangeCheck: check(
       "future_commitments_date_range_check",
       sql`${table.endDate} is null or ${table.endDate} >= ${table.startDate}`

@@ -1,5 +1,7 @@
 # Step 4 — Scenarios and Forecast Overlay
 
+> Historical note: Step 4.5 supersedes the active scenario item model described here. Scenario metadata still exists, but planning items now live in `future_commitments` as Scenario Commitments. See `docs/STEP_4_5_SCENARIO_COMMITMENTS.md`.
+
 ## Purpose
 PersFinance already supports baseline forecasting across commitments, transfers, and future transactions. Step 4 adds lightweight what-if planning so users can preview hypothetical adjustments before they enter or change anything.
 

@@ -19,7 +19,12 @@
       <% const overdue = item.active && item.nextDueDate <= today && (!item.endDate || item.nextDueDate <= item.endDate); %>
       <tr class="<%= overdue ? "overdue-row" : "" %>">
         <td><%= item.nextDueDate %></td>
-        <td><%= item.name %></td>
+        <td>
+          <%= item.name %>
+          <% if (item.scenarioName) { %>
+            <span class="status">Scenario: <%= item.scenarioName %></span>
+          <% } %>
+        </td>
         <td><%= item.payeeName || "" %></td>
         <td><%= item.accountName || "Unassigned" %></td>
         <td><%= item.categoryName || "" %></td>

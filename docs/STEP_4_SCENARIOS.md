@@ -25,6 +25,8 @@ Stays read-only. A scenario is a hypothetical set of adjustments applied on top 
 
 Scenarios are active by default. Archived scenarios remain visible through the Scenarios page when "Show archived" is enabled, but they are not offered on normal forecast pages and are ignored if their IDs are passed in forecast query parameters.
 
+Step 4.5 moves scenario planning items onto `future_commitments` as Scenario Commitments. Scenario creation now captures metadata only; accounts are associated through scenario items. See `docs/STEP_4_5_SCENARIO_COMMITMENTS.md` for the current item model, promotion behavior, and forecast rules.
+
 Forecast behavior remains baseline-only unless at least one selected scenario is active and linked to the projected account. The projection service returns the accepted scenario IDs so the UI only shows "Scenario overlay active" when an active overlay is actually applied.
 
 ## User Flow

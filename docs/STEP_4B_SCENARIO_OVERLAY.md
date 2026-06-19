@@ -1,5 +1,7 @@
 # Step 4B — Scenario Overlay
 
+> Historical note: Step 4.5 supersedes the scenario-adjustment overlay model. Forecast overlays now use scenario-scoped future commitments. See `docs/STEP_4_5_SCENARIO_COMMITMENTS.md`.
+
 ## Purpose
 
 Step 4B adds scenario selection to the existing forecast page so users can preview stacked what-if adjustments on top of the baseline projection without changing Step 4A data model or workflow behavior.
@@ -28,6 +30,7 @@ When scenarios are selected:
 - scenario adjustments appear in the projection table
 - warning balances and low/high summaries include scenario amounts
 - archived scenario IDs are ignored, including when passed manually in query params
+- Step 4.5 scenario overlays are powered by scenario-scoped future commitments. Scenario-only commitments appear only when their scenario is selected; promoted scenario commitments are included through the baseline forecast and are not double-counted as overlay rows.
 
 ## Same-Day Ordering
 

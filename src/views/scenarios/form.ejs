@@ -1,7 +1,7 @@
 <section class="page-header row">
   <div>
     <h1><%= scenario && scenario.id ? 'Edit Scenario' : 'New Scenario' %></h1>
-    <p>Choose the accounts where this hypothetical overlay can appear.</p>
+    <p>Capture the scenario details. Accounts are linked by scenario items.</p>
   </div>
   <div class="form-actions">
     <a class="button secondary-button" href="<%= scenario && scenario.id ? '/scenarios/' + scenario.id : '/scenarios' %>">Cancel</a>
@@ -24,19 +24,6 @@
       <input type="checkbox" name="active" <%= !scenario || typeof scenario.active === 'undefined' || scenario.active ? 'checked' : '' %>>
       <span>Active</span>
     </label>
-  </fieldset>
-
-  <fieldset class="checkbox-group full">
-    <legend>Accounts</legend>
-    <p class="hint">Select the accounts this scenario applies to.</p>
-    <div class="checkbox-list">
-      <% accounts.forEach((account) => { %>
-        <label class="checkbox-label">
-          <input type="checkbox" name="accountIds" value="<%= account.id %>" <%= typeof scenario !== 'undefined' && scenario && Array.isArray(scenario.accountIds) && scenario.accountIds.includes(account.id) ? 'checked' : '' %>>
-          <span><%= account.name %> (<%= account.type %>)</span>
-        </label>
-      <% }) %>
-    </div>
   </fieldset>
 
   <div class="form-actions">

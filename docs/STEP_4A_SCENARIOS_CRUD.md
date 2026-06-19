@@ -1,5 +1,7 @@
 # Step 4A — Scenario CRUD
 
+> Historical note: Step 4.5 supersedes the active scenario item model described here. Scenario metadata still exists, but planning items now live in `future_commitments` as Scenario Commitments. See `docs/STEP_4_5_SCENARIO_COMMITMENTS.md`.
+
 ## Purpose
 
 Step 4A adds lightweight what-if scenarios to PersFinance without changing the existing forecast shape. A scenario is a named, versioned set of hypothetical adjustments that can be stacked on top of the baseline projection.
