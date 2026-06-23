@@ -1,0 +1,69 @@
+name: persfinance-dev
+
+services:
+  app:
+    build:
+      context: .
+      target: development
+    container_name: persfinance-dev-app
+    env_file:
+      - path: .env
+        required: false
+      - path: .env.docker
+        required: false
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: ${PORT:-3000}
+    ports:
+      - "${HOST_PORT:-3000}:${PORT:-3000}"
+    volumes:
+      - .:/app
+      - persfinance_node_modules:/app/node_modules
+    networks:
+      - ttd-network
+    command: npm run dev
+
+  migrate:
+    build:
+      context: .
+      target: development
+    container_name: persfinance-dev-migrate
+    profiles:
+      - tools
+    env_file:
+      - path: .env
+        required: false
+      - path: .env.docker
+        required: false
+    volumes:
+      - .:/app
+      - persfinance_node_modules:/app/node_modules
+    networks:
+      - ttd-network
+    command: npm run db:migrate
+
+  seed:
+    build:
+      context: .
+      target: development
+    container_name: persfinance-dev-seed
+    profiles:
+      - tools
+    env_file:
+      - path: .env
+        required: false
+      - path: .env.docker
+        required: false
+    volumes:
+      - .:/app
+      - persfinance_node_modules:/app/node_modules
+    networks:
+      - ttd-network
+    command: npm run seed:dev
+
+networks:
+  ttd-network:
+    external: true
+
+volumes:
+  persfinance_node_modules:
