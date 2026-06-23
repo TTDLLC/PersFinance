@@ -4,14 +4,25 @@ WORKDIR /app
 
 COPY package*.json ./
 
+FROM base AS development
+
+ENV NODE_ENV=development
+
+RUN npm install
+
+EXPOSE 3000
+
+CMD ["npm", "run", "dev"]
+
+FROM base AS production
+
+ENV NODE_ENV=production
+
 RUN npm install
 
 COPY . .
 
 RUN npm run build
-
-RUN cp -R src/views dist/src/views && \
-    cp -R src/public dist/src/public
 
 EXPOSE 3000
 
