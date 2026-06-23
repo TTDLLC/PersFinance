@@ -1,61 +1,46 @@
 services:
   app:
-    build: .
+    build:
+      context: .
+      target: production
     container_name: persfinance-app
     env_file:
-      - path: .env.docker
-        required: false
+      - path: .env
+        required: true
     ports:
-      - "3000:3000"
-    depends_on:
-      db:
-        condition: service_healthy
+      - "127.0.0.1:${HOST_PORT:-3000}:${PORT:-3000}"
+    restart: unless-stopped
+    networks:
+      - ttd-network
 
   migrate:
-    build: .
+    build:
+      context: .
+      target: production
     container_name: persfinance-migrate
     env_file:
-      - path: .env.docker
-        required: false
-    depends_on:
-      db:
-        condition: service_healthy
+      - path: .env
+        required: true
     command: npm run db:migrate
     profiles:
       - tools
+    networks:
+      - ttd-network
 
   seed:
-    build: .
+    build:
+      context: .
+      target: production
     container_name: persfinance-seed
     env_file:
-      - path: .env.docker
-        required: false
-    depends_on:
-      db:
-        condition: service_healthy
+      - path: .env
+        required: true
     command: npm run seed:dev
     profiles:
       - tools
+    networks:
+      - ttd-network
 
-  db:
-    image: postgres:16-alpine
-    container_name: persfinance-db
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: finance_projection
-      POSTGRES_USER: finance_app
-      POSTGRES_PASSWORD: finance_dev_password
-    ports:
-      - "5433:5432"
-    volumes:
-      - persfinance_postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U finance_app -d finance_projection"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-      start_period: 5s
-
-volumes:
-  persfinance_postgres_data:
-  
+networks:
+  ttd-network:
+    external: true
