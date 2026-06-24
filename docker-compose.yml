@@ -1,45 +1,38 @@
 services:
   app:
-    build:
-      context: .
-      target: production
+    build: .
     container_name: persfinance-app
     env_file:
-      - path: .env
-        required: true
+      - path: .env.docker
+        required: false
     ports:
-      - "127.0.0.1:${HOST_PORT:-3000}:${PORT:-3000}"
-    restart: unless-stopped
+      - "${HOST_PORT:-3000}:${PORT:-3000}"
     networks:
       - ttd-network
 
   migrate:
-    build:
-      context: .
-      target: production
+    build: .
     container_name: persfinance-migrate
     env_file:
-      - path: .env
-        required: true
+      - path: .env.docker
+        required: false
+    networks:
+      - ttd-network
     command: npm run db:migrate
     profiles:
       - tools
-    networks:
-      - ttd-network
 
   seed:
-    build:
-      context: .
-      target: production
+    build: .
     container_name: persfinance-seed
     env_file:
-      - path: .env
-        required: true
+      - path: .env.docker
+        required: false
+    networks:
+      - ttd-network
     command: npm run seed:dev
     profiles:
       - tools
-    networks:
-      - ttd-network
 
 networks:
   ttd-network:
