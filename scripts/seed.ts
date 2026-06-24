@@ -61,14 +61,17 @@ const ensureDevSeedData = async () => {
 };
 
 const main = async () => {
-  if (!env.INITIAL_ADMIN_EMAIL || !env.INITIAL_ADMIN_PASSWORD) {
+  const initialAdminEmail = env.INITIAL_ADMIN_EMAIL ?? (devSeedEnabled ? "dev-admin@example.com" : undefined);
+  const initialAdminPassword = env.INITIAL_ADMIN_PASSWORD ?? (devSeedEnabled ? "dev-password" : undefined);
+
+  if (!initialAdminEmail || !initialAdminPassword) {
     throw new Error("INITIAL_ADMIN_EMAIL and INITIAL_ADMIN_PASSWORD are required for seeding.");
   }
 
-  const email = env.INITIAL_ADMIN_EMAIL.toLowerCase();
+  const email = initialAdminEmail.toLowerCase();
   const [existingUser] = await db.select().from(users).where(eq(users.email, email)).limit(1);
   if (!existingUser) {
-    const passwordHash = await bcrypt.hash(env.INITIAL_ADMIN_PASSWORD, 12);
+    const passwordHash = await bcrypt.hash(initialAdminPassword, 12);
     await db.insert(users).values({
       email,
       passwordHash,
