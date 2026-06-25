@@ -14,12 +14,19 @@ const selectedScenarioIds = (value: unknown) => {
   return ids.filter((id): id is string => typeof id === "string" && id.length > 0);
 };
 
+const selectedAsOfDate = (value: unknown) => {
+  const option = Array.isArray(value) ? value[value.length - 1] : value;
+  return typeof option === "string" && /^\d{4}-\d{2}-\d{2}$/.test(option) ? option : undefined;
+};
+
 export const showAccountForecast = async (req: Request, res: Response) => {
   const accountId = req.params.accountId;
   const windowDays = selectedWindowDays(req.query.window);
   const scenarioIds = selectedScenarioIds(req.query.scenarioIds);
+  const asOfDate = selectedAsOfDate(req.query.asOfDate);
 
   const projection = await getAccountProjection(accountId, {
+    asOfDate,
     windowDays,
     scenarioIds
   });

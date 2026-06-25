@@ -235,7 +235,7 @@ const main = async () => {
     const server = await startServer();
     try {
       const cookie = await login(server.baseUrl);
-      const forecastResponse = await fetch(`${server.baseUrl}/accounts/${checking.id}/forecast?window=90`, { headers: { cookie } });
+      const forecastResponse = await fetch(`${server.baseUrl}/accounts/${checking.id}/forecast?window=90&asOfDate=2026-06-15`, { headers: { cookie } });
       const forecastHtml = await forecastResponse.text();
       assert(forecastResponse.status === 200, "Forecast route should load.");
       assert(forecastHtml.includes("Projection Start Balance"), "Forecast page should name the projection start balance.");
@@ -257,7 +257,7 @@ const main = async () => {
       assert(accountsResponse.status === 200, "Accounts route should load.");
       assert(accountsHtml.includes(`/accounts/${checking.id}/forecast`), "Accounts list should link to forecast.");
 
-      const dashboardResponse = await fetch(`${server.baseUrl}/dashboard`, { headers: { cookie } });
+      const dashboardResponse = await fetch(`${server.baseUrl}/dashboard?asOfDate=2026-06-15`, { headers: { cookie } });
       const dashboardHtml = await dashboardResponse.text();
       assert(dashboardResponse.status === 200, "Dashboard route should load.");
       assert(dashboardHtml.includes("30-Day Projected Low"), "Dashboard should include the lightweight projection summary.");
