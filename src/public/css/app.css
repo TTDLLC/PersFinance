@@ -555,6 +555,10 @@ summary {
   padding: 14px;
 }
 
+.filter-bar-end {
+  margin-left: auto;
+}
+
 .table-panel {
   background: var(--panel);
   border: 1px solid var(--line);
@@ -729,6 +733,10 @@ summary {
   .filter-bar {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .filter-bar-end {
+    margin-left: 0;
   }
 
   .app-shell {

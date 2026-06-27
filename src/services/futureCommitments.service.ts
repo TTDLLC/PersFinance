@@ -3,6 +3,10 @@ import { db } from "../db/index.js";
 import { accounts, categories, futureCommitments, payees, scenarios, transactions } from "../db/schema.js";
 
 export type CommitmentFrequency = typeof futureCommitments.$inferSelect.frequency;
+export type CommitmentFilters = {
+  payeeId?: string;
+  accountId?: string;
+};
 
 const toMoney = (value: number) => value.toFixed(2);
 export const isoToday = () => new Date().toISOString().slice(0, 10);
@@ -32,8 +36,15 @@ export const advanceDueDate = (date: string, frequency: CommitmentFrequency) => 
 
 const visibleCutoff = (today: string) => addDays(today, -60);
 
-export const listCommitments = async (showAll = false, today = isoToday()) =>
-  db
+export const listCommitments = async (showAll = false, today = isoToday(), filters: CommitmentFilters = {}) => {
+  const conditions = [
+    eq(futureCommitments.includeInBaseline, true),
+    showAll ? undefined : or(isNull(futureCommitments.endDate), gte(futureCommitments.endDate, visibleCutoff(today)))
+  ];
+  if (filters.payeeId) conditions.push(eq(futureCommitments.payeeId, filters.payeeId));
+  if (filters.accountId) conditions.push(eq(futureCommitments.accountId, filters.accountId));
+
+  return db
     .select({
       id: futureCommitments.id,
       name: futureCommitments.name,
@@ -59,13 +70,9 @@ export const listCommitments = async (showAll = false, today = isoToday()) =>
     .leftJoin(categories, eq(futureCommitments.categoryId, categories.id))
     .leftJoin(accounts, eq(futureCommitments.accountId, accounts.id))
     .leftJoin(scenarios, eq(futureCommitments.scenarioId, scenarios.id))
-    .where(
-      and(
-        eq(futureCommitments.includeInBaseline, true),
-        showAll ? undefined : or(isNull(futureCommitments.endDate), gte(futureCommitments.endDate, visibleCutoff(today)))
-      )
-    )
+    .where(and(...conditions))
     .orderBy(asc(futureCommitments.nextDueDate), asc(futureCommitments.name));
+};
 
 export const getCommitment = async (id: string, options?: { baselineOnly?: boolean }) => {
   const filters = [eq(futureCommitments.id, id)];

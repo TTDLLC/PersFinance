@@ -5,7 +5,7 @@
   </div>
   <div class="form-actions">
     <a class="button secondary-button" href="/accounts">Back to Accounts</a>
-    <a class="button secondary-button" href="/scenarios<%= showArchived ? '' : '?showArchived=true' %>"><%= showArchived ? "Hide Archived" : "Show Archived" %></a>
+    <a class="button secondary-button" href="<%= archiveToggleHref %>"><%= showArchived ? "Hide Archived" : "Show Archived" %></a>
     <a class="button" href="/scenarios/new">New Scenario</a>
   </div>
 </section>

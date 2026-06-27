@@ -4,7 +4,7 @@
     <p><%= showArchived ? "Showing active and archived accounts." : "Showing active accounts." %></p>
   </div>
   <div class="form-actions">
-    <a class="button secondary-button" href="/dashboard<%= showArchived ? '' : '?showArchived=true' %>"><%= showArchived ? "Hide Archived" : "Show Archived" %></a>
+    <a class="button secondary-button" href="<%= archiveToggleHref %>"><%= showArchived ? "Hide Archived" : "Show Archived" %></a>
     <a class="button" href="/accounts/new">New Account</a>
   </div>
 </section>

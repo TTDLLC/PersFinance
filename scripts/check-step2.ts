@@ -4,6 +4,7 @@ import {
   accounts,
   accountStatements,
   futureCommitments,
+  payees,
   transactions
 } from "../src/db/schema.js";
 import { Accounts } from "../src/services/accounts.service.js";
@@ -21,13 +22,15 @@ import {
 
 const accountPrefix = "Step 2 Smoke";
 const commitmentPrefix = "Step 2 Commitment";
+const otherCommitmentName = "Step 2 Other Commitment";
+const payeeNames = ["Step 2 Smoke Payee", "Step 2 Other Payee"];
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
 }
 
 const cleanup = async () => {
-  await db.delete(futureCommitments).where(eq(futureCommitments.name, commitmentPrefix));
+  await db.delete(futureCommitments).where(inArray(futureCommitments.name, [commitmentPrefix, otherCommitmentName]));
   const smokeAccounts = await db
     .select({ id: accounts.id })
     .from(accounts)
@@ -38,6 +41,7 @@ const cleanup = async () => {
     await db.delete(accountStatements).where(inArray(accountStatements.accountId, smokeIds));
     await db.delete(accounts).where(inArray(accounts.id, smokeIds));
   }
+  await db.delete(payees).where(inArray(payees.name, payeeNames));
 };
 
 const main = async () => {
@@ -57,6 +61,10 @@ const main = async () => {
     type: "credit_card",
     startingInformation: { balance: "0.00", date: "2026-01-01" }
   });
+  const [smokePayee, otherPayee] = await db
+    .insert(payees)
+    .values(payeeNames.map((name) => ({ name })))
+    .returning({ id: payees.id });
 
   try {
     const transferId = await createTransfer({
@@ -136,6 +144,7 @@ const main = async () => {
       .values({
         name: commitmentPrefix,
         accountId: source.id,
+        payeeId: smokePayee.id,
         amount: "-45.00",
         frequency: "monthly",
         nextDueDate: "2026-06-10",
@@ -143,6 +152,28 @@ const main = async () => {
         active: true
       })
       .returning();
+    const [otherCommitment] = await db
+      .insert(futureCommitments)
+      .values({
+        name: otherCommitmentName,
+        accountId: destination.id,
+        payeeId: otherPayee.id,
+        amount: "-12.00",
+        frequency: "monthly",
+        nextDueDate: "2026-06-11",
+        startDate: "2026-01-11",
+        active: true
+      })
+      .returning();
+
+    const payeeFiltered = await listCommitments(false, "2026-06-14", { payeeId: smokePayee.id });
+    assert(payeeFiltered.some((row) => row.id === commitment.id), "Payee filter should include matching commitments.");
+    assert(!payeeFiltered.some((row) => row.id === otherCommitment.id), "Payee filter should exclude non-matching commitments.");
+    const accountFiltered = await listCommitments(false, "2026-06-14", { accountId: source.id });
+    assert(accountFiltered.some((row) => row.id === commitment.id), "Account filter should include matching commitments.");
+    assert(!accountFiltered.some((row) => row.id === otherCommitment.id), "Account filter should exclude non-matching commitments.");
+    const combinedFiltered = await listCommitments(false, "2026-06-14", { payeeId: otherPayee.id, accountId: source.id });
+    assert(!combinedFiltered.some((row) => row.id === commitment.id || row.id === otherCommitment.id), "Payee and account filters should combine.");
 
     const overdue = await getOverdueCommitments(source.id, "2026-06-14");
     assert(overdue.some((row) => row.id === commitment.id), "Due commitment detection should include assigned overdue commitments.");

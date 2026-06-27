@@ -4,6 +4,7 @@ import { db } from "../db/index.js";
 import { accounts } from "../db/schema.js";
 import { Accounts } from "../services/accounts.service.js";
 import { accountSchema, accountTypes, firstValidationMessage } from "../validation/forms.js";
+import { archiveToggleHref } from "./archiveToggle.js";
 
 const today = () => new Date().toISOString().slice(0, 10);
 const toMoney = (value: number) => value.toFixed(2);
@@ -18,7 +19,13 @@ const queryFlag = (value: unknown, defaultValue: boolean) => {
 export const listAccounts = async (req: Request, res: Response) => {
   const showArchived = queryFlag(req.query.showArchived, false);
   const rows = await Accounts.list({ activeOnly: !showArchived });
-  res.render("layout", { title: "Accounts", view: "accounts/index", accounts: rows, showArchived });
+  res.render("layout", {
+    title: "Accounts",
+    view: "accounts/index",
+    accounts: rows,
+    showArchived,
+    archiveToggleHref: archiveToggleHref("/accounts", req.query, showArchived)
+  });
 };
 
 export const newAccount = (_req: Request, res: Response) => {

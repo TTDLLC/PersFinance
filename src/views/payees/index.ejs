@@ -3,14 +3,9 @@
   <a class="button" href="/payees/new">New Payee</a>
 </section>
 
-<form class="filter-bar" method="get" action="/payees">
-  <input type="hidden" name="showArchived" value="false">
-  <label class="checkbox">
-    <input type="checkbox" name="showArchived" value="true" <%= showArchived ? "checked" : "" %>>
-    Show archived
-  </label>
-  <button type="submit">Update</button>
-</form>
+<div class="filter-bar">
+  <a class="button secondary-button" href="<%= archiveToggleHref %>"><%= showArchived ? "Hide Archived" : "Show Archived" %></a>
+</div>
 
 <table>
   <thead><tr><th>Name</th><th>Notes</th><th>Status</th><th></th></tr></thead>

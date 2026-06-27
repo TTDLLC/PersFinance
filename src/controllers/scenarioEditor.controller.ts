@@ -8,6 +8,7 @@ import {
   updateScenario
 } from "../services/scenarios.service.js";
 import { listScenarioCommitments } from "../services/futureCommitments.service.js";
+import { archiveToggleHref } from "./archiveToggle.js";
 
 const nullableText = (value: unknown) => {
   const trimmed = String(value ?? "").trim();
@@ -62,7 +63,8 @@ export const listScenariosController = async (req: Request, res: Response, next:
       view: "scenarios/index",
       scenarios: await listScenarios({ includeInactive: showArchived }),
       showArchived,
-      showAll: showArchived
+      showAll: showArchived,
+      archiveToggleHref: archiveToggleHref("/scenarios", req.query, showArchived, { aliases: ["showAll"] })
     });
   } catch (error) {
     next(error);

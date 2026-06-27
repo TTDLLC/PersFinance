@@ -3,6 +3,7 @@ import { and, asc, desc, eq, ne, sql } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { categories, transactions } from "../db/schema.js";
 import { categorySchema, categoryTypes, firstValidationMessage } from "../validation/forms.js";
+import { archiveToggleHref } from "./archiveToggle.js";
 
 const queryFlag = (value: unknown, defaultValue: boolean) => {
   const lastValue = Array.isArray(value) ? value[value.length - 1] : value;
@@ -46,7 +47,13 @@ const categoryRows = async (showArchived: boolean) => {
 export const listCategories = async (req: Request, res: Response) => {
   const showArchived = queryFlag(req.query.showArchived, false);
   const rows = await categoryRows(showArchived);
-  res.render("layout", { title: "Categories", view: "categories/index", categories: rows, showArchived });
+  res.render("layout", {
+    title: "Categories",
+    view: "categories/index",
+    categories: rows,
+    showArchived,
+    archiveToggleHref: archiveToggleHref("/categories", req.query, showArchived)
+  });
 };
 
 export const newCategory = (_req: Request, res: Response) => {

@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import { Accounts } from "../services/accounts.service.js";
 import { getAccountProjection } from "../services/projections.service.js";
+import { archiveToggleHref } from "./archiveToggle.js";
 
 const selectedAsOfDate = (value: unknown) => {
   const option = Array.isArray(value) ? value[value.length - 1] : value;
@@ -25,6 +26,7 @@ export const showDashboard = async (req: Request, res: Response) => {
     title: "Dashboard",
     view: "dashboard/index",
     accounts,
-    showArchived
+    showArchived,
+    archiveToggleHref: archiveToggleHref("/dashboard", req.query, showArchived)
   });
 };

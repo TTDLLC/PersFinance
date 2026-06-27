@@ -14,8 +14,10 @@ import {
   firstValidationMessage,
   futureCommitmentSchema
 } from "../validation/forms.js";
+import { archiveToggleHref } from "./archiveToggle.js";
 
 const queryFlag = (value: unknown) => value === "true" || value === "on";
+const queryString = (value: unknown) => (typeof value === "string" ? value : "");
 const toMoney = (value: number) => value.toFixed(2);
 
 const formData = async (commitment?: { accountId?: string | null; payeeId?: string | null; categoryId?: string | null }) => ({
@@ -39,11 +41,27 @@ const formData = async (commitment?: { accountId?: string | null; payeeId?: stri
 
 export const listFutureCommitments = async (req: Request, res: Response) => {
   const showAll = queryFlag(req.query.showAll);
+  const filters = {
+    payeeId: queryString(req.query.payeeId),
+    accountId: queryString(req.query.accountId)
+  };
   res.render("layout", {
     title: "Future Commitments",
     view: "commitments/index",
-    commitments: await listCommitments(showAll),
+    commitments: await listCommitments(showAll, isoToday(), filters),
     showAll,
+    historyToggleHref: archiveToggleHref("/commitments", req.query, showAll, { parameter: "showAll" }),
+    filters,
+    filterAccounts: await db
+      .select()
+      .from(accounts)
+      .where(filters.accountId ? or(eq(accounts.active, true), eq(accounts.id, filters.accountId)) : eq(accounts.active, true))
+      .orderBy(desc(accounts.active), asc(accounts.name)),
+    filterPayees: await db
+      .select()
+      .from(payees)
+      .where(filters.payeeId ? or(eq(payees.active, true), eq(payees.id, filters.payeeId)) : eq(payees.active, true))
+      .orderBy(desc(payees.active), asc(payees.name)),
     today: isoToday()
   });
 };

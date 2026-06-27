@@ -7,14 +7,33 @@
 </section>
 
 <form class="filter-bar" method="get" action="/commitments">
-  <label class="checkbox"><input type="checkbox" name="showAll" value="true" <%= showAll ? "checked" : "" %>> Show all history</label>
+  <label>Payee
+    <select name="payeeId">
+      <option value="">All payees</option>
+      <% filterPayees.forEach((payee) => { %>
+        <option value="<%= payee.id %>" <%= filters.payeeId === payee.id ? "selected" : "" %>><%= payee.name %><%= payee.active ? "" : " (Archived)" %></option>
+      <% }) %>
+    </select>
+  </label>
+  <label>Account
+    <select name="accountId">
+      <option value="">All accounts</option>
+      <% filterAccounts.forEach((account) => { %>
+        <option value="<%= account.id %>" <%= filters.accountId === account.id ? "selected" : "" %>><%= account.name %><%= account.active ? "" : " (Archived)" %></option>
+      <% }) %>
+    </select>
+  </label>
   <button type="submit">Update</button>
+  <% if (filters.payeeId || filters.accountId || showAll) { %>
+    <a href="/commitments">Clear</a>
+  <% } %>
+  <a class="button secondary-button filter-bar-end" href="<%= historyToggleHref %>"><%= showAll ? "Hide All History" : "Show All History" %></a>
 </form>
 
 <table>
   <thead><tr><th>Due</th><th>Name</th><th>Payee</th><th>Account</th><th>Category</th><th>Frequency</th><th>Amount</th><th>Status</th><th></th></tr></thead>
   <tbody>
-    <% if (!commitments.length) { %><tr><td class="empty-state" colspan="9">No future commitments in this view.</td></tr><% } %>
+    <% if (!commitments.length) { %><tr><td class="empty-state" colspan="9"><%= filters.payeeId || filters.accountId ? "No future commitments match the selected filters." : "No future commitments in this view." %></td></tr><% } %>
     <% commitments.forEach((item) => { %>
       <% const overdue = item.active && item.nextDueDate <= today && (!item.endDate || item.nextDueDate <= item.endDate); %>
       <tr class="<%= overdue ? "overdue-row" : "" %>">

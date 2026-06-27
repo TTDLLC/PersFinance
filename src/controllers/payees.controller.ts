@@ -3,6 +3,7 @@ import { and, asc, desc, eq, ne, sql } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { payees } from "../db/schema.js";
 import { firstValidationMessage, payeeSchema } from "../validation/forms.js";
+import { archiveToggleHref } from "./archiveToggle.js";
 
 const queryFlag = (value: unknown, defaultValue: boolean) => {
   const lastValue = Array.isArray(value) ? value[value.length - 1] : value;
@@ -28,7 +29,13 @@ export const listPayees = async (req: Request, res: Response) => {
     .where(showArchived ? undefined : eq(payees.active, true))
     .orderBy(desc(payees.active), asc(payees.name));
 
-  res.render("layout", { title: "Payees", view: "payees/index", payees: rows, showArchived });
+  res.render("layout", {
+    title: "Payees",
+    view: "payees/index",
+    payees: rows,
+    showArchived,
+    archiveToggleHref: archiveToggleHref("/payees", req.query, showArchived)
+  });
 };
 
 export const newPayee = (_req: Request, res: Response) => {
