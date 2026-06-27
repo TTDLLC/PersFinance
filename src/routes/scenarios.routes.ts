@@ -4,7 +4,6 @@ import { eq } from "drizzle-orm";
 import { db } from "../db/index.js";
 import {
   accounts,
-  categories,
   payees
 } from "../db/schema.js";
 import { requireAuth } from "../middleware/auth.js";
@@ -33,6 +32,19 @@ const flashValidationError = (req: Request, error: unknown) => {
   req.flash("error", error instanceof Error ? error.message : "Could not save scenario item.");
 };
 
+const normalizeScenarioItemFormBody = (body: Record<string, unknown>) => {
+  const kind = body.kind === "transfer" ? "transfer" : "transaction";
+  const fromAccountId = typeof body.fromAccountId === "string" ? body.fromAccountId : undefined;
+  return {
+    ...body,
+    kind,
+    accountId: kind === "transaction" ? fromAccountId ?? body.accountId : "",
+    categoryId: "",
+    transferFromAccountId: kind === "transfer" ? fromAccountId ?? body.transferFromAccountId : "",
+    transferToAccountId: kind === "transfer" ? body.transferToAccountId : ""
+  };
+};
+
 const activeAccounts = async () =>
   db
     .select()
@@ -47,24 +59,16 @@ const activePayees = async () =>
     .where(eq(payees.active, true))
     .orderBy(payees.name);
 
-const activeCategories = async () =>
-  db
-    .select()
-    .from(categories)
-    .where(eq(categories.active, true))
-    .orderBy(categories.name);
-
 const itemFormData = async () => ({
   accounts: await activeAccounts(),
   payees: await activePayees(),
-  categories: await activeCategories(),
   frequencies: commitmentFrequencies
 });
 
 const parseScenarioItem = (body: unknown) => {
-  const parsed = futureCommitmentSchema.safeParse(body);
+  const parsed = futureCommitmentSchema.safeParse(normalizeScenarioItemFormBody(body as Record<string, unknown>));
   if (!parsed.success) throw new Error(firstValidationMessage(parsed.error));
-  if (!parsed.data.accountId) throw new Error("Scenario item account is required.");
+  if (parsed.data.kind !== "transfer" && !parsed.data.accountId) throw new Error("Scenario item account is required.");
   return parsed.data;
 };
 

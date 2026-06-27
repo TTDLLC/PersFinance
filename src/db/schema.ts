@@ -52,6 +52,11 @@ export const commitmentFrequencyEnum = pgEnum("commitment_frequency", [
   "yearly"
 ]);
 
+export const commitmentKindEnum = pgEnum("commitment_kind", [
+  "transaction",
+  "transfer"
+]);
+
 export const users = pgTable(
   "users",
   {
@@ -244,6 +249,9 @@ export const futureCommitments = pgTable(
     payeeId: uuid("payee_id").references(() => payees.id, { onDelete: "set null" }),
     categoryId: uuid("category_id").references(() => categories.id, { onDelete: "set null" }),
     accountId: uuid("account_id").references(() => accounts.id, { onDelete: "set null" }),
+    kind: commitmentKindEnum("kind").notNull().default("transaction"),
+    transferFromAccountId: uuid("transfer_from_account_id").references(() => accounts.id, { onDelete: "set null" }),
+    transferToAccountId: uuid("transfer_to_account_id").references(() => accounts.id, { onDelete: "set null" }),
     scenarioId: uuid("scenario_id").references(() => scenarios.id, { onDelete: "cascade" }),
     includeInBaseline: boolean("include_in_baseline").notNull().default(true),
     amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
@@ -258,11 +266,17 @@ export const futureCommitments = pgTable(
   (table) => ({
     dueIdx: index("future_commitments_due_idx").on(table.includeInBaseline, table.active, table.nextDueDate),
     accountDueIdx: index("future_commitments_account_due_idx").on(table.accountId, table.includeInBaseline, table.active, table.nextDueDate),
+    transferFromDueIdx: index("future_commitments_transfer_from_due_idx").on(table.transferFromAccountId, table.includeInBaseline, table.active, table.nextDueDate),
+    transferToDueIdx: index("future_commitments_transfer_to_due_idx").on(table.transferToAccountId, table.includeInBaseline, table.active, table.nextDueDate),
     scenarioIdx: index("future_commitments_scenario_idx").on(table.scenarioId),
     scenarioBaselineIdx: index("future_commitments_scenario_baseline_idx").on(table.scenarioId, table.includeInBaseline),
     dateRangeCheck: check(
       "future_commitments_date_range_check",
       sql`${table.endDate} is null or ${table.endDate} >= ${table.startDate}`
+    ),
+    transferAccountsCheck: check(
+      "future_commitments_transfer_accounts_check",
+      sql`${table.kind} <> 'transfer' or (${table.transferFromAccountId} is not null and ${table.transferToAccountId} is not null and ${table.transferFromAccountId} <> ${table.transferToAccountId})`
     ),
     nonzeroAmountCheck: check("future_commitments_nonzero_amount_check", sql`${table.amount} <> 0`)
   })

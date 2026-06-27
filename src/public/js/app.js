@@ -74,6 +74,25 @@ document.querySelectorAll("[data-reconcile-form]").forEach((form) => {
   form.addEventListener("change", () => updateReconciliationForm(form));
 });
 
+document.querySelectorAll("[data-commitment-kind-form]").forEach((form) => {
+  const syncCommitmentKind = () => {
+    const kind = form.querySelector("input[name='kind']:checked")?.value || "transaction";
+    const toAccount = form.querySelector("[data-commitment-to-account]");
+    if (toAccount instanceof HTMLSelectElement) {
+      const transfer = kind === "transfer";
+      toAccount.disabled = !transfer;
+      toAccount.required = transfer;
+      toAccount.closest("label")?.classList.toggle("muted-field", !transfer);
+      if (!transfer) toAccount.value = "";
+    }
+  };
+
+  syncCommitmentKind();
+  form.addEventListener("change", (event) => {
+    if (event.target instanceof HTMLInputElement && event.target.name === "kind") syncCommitmentKind();
+  });
+});
+
 const importFilterButtons = [...document.querySelectorAll("[data-import-filter]")];
 const importPreviewRows = [...document.querySelectorAll("[data-import-preview-row]")];
 const importFilterEmpty = document.querySelector("[data-import-filter-empty]");

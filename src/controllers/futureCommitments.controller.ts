@@ -1,12 +1,13 @@
 import type { Request, Response } from "express";
 import { asc, desc, eq, or } from "drizzle-orm";
 import { db } from "../db/index.js";
-import { accounts, categories, futureCommitments, payees } from "../db/schema.js";
+import { accounts, futureCommitments, payees } from "../db/schema.js";
 import {
   enterCommitment,
   getCommitment,
   isoToday,
-  listCommitments
+  listCommitments,
+  normalizeCommitmentValues
 } from "../services/futureCommitments.service.js";
 import {
   commitmentEntrySchema,
@@ -18,24 +19,45 @@ import { archiveToggleHref } from "./archiveToggle.js";
 
 const queryFlag = (value: unknown) => value === "true" || value === "on";
 const queryString = (value: unknown) => (typeof value === "string" ? value : "");
-const toMoney = (value: number) => value.toFixed(2);
-
-const formData = async (commitment?: { accountId?: string | null; payeeId?: string | null; categoryId?: string | null }) => ({
+const normalizeCommitmentFormBody = (body: Record<string, unknown>) => {
+  const kind = body.kind === "transfer" ? "transfer" : "transaction";
+  const fromAccountId = typeof body.fromAccountId === "string" ? body.fromAccountId : undefined;
+  return {
+    ...body,
+    kind,
+    accountId: kind === "transaction" ? fromAccountId ?? body.accountId : "",
+    categoryId: "",
+    transferFromAccountId: kind === "transfer" ? fromAccountId ?? body.transferFromAccountId : "",
+    transferToAccountId: kind === "transfer" ? body.transferToAccountId : ""
+  };
+};
+const formData = async (commitment?: {
+  fromAccountId?: string | null;
+  accountId?: string | null;
+  transferFromAccountId?: string | null;
+  transferToAccountId?: string | null;
+  payeeId?: string | null;
+}) => ({
   accounts: await db
     .select()
     .from(accounts)
-    .where(commitment?.accountId ? or(eq(accounts.active, true), eq(accounts.id, commitment.accountId)) : eq(accounts.active, true))
+    .where(
+      commitment?.fromAccountId || commitment?.accountId || commitment?.transferFromAccountId || commitment?.transferToAccountId
+        ? or(
+            eq(accounts.active, true),
+            commitment.fromAccountId ? eq(accounts.id, commitment.fromAccountId) : undefined,
+            commitment.accountId ? eq(accounts.id, commitment.accountId) : undefined,
+            commitment.transferFromAccountId ? eq(accounts.id, commitment.transferFromAccountId) : undefined,
+            commitment.transferToAccountId ? eq(accounts.id, commitment.transferToAccountId) : undefined
+          )
+        : eq(accounts.active, true)
+    )
     .orderBy(desc(accounts.active), asc(accounts.name)),
   payees: await db
     .select()
     .from(payees)
     .where(commitment?.payeeId ? or(eq(payees.active, true), eq(payees.id, commitment.payeeId)) : eq(payees.active, true))
     .orderBy(desc(payees.active), asc(payees.name)),
-  categories: await db
-    .select()
-    .from(categories)
-    .where(commitment?.categoryId ? or(eq(categories.active, true), eq(categories.id, commitment.categoryId)) : eq(categories.active, true))
-    .orderBy(desc(categories.active), asc(categories.name)),
   frequencies: commitmentFrequencies
 });
 
@@ -77,7 +99,8 @@ export const newFutureCommitment = async (_req: Request, res: Response) => {
 };
 
 export const createFutureCommitment = async (req: Request, res: Response) => {
-  const parsed = futureCommitmentSchema.safeParse(req.body);
+  const body = normalizeCommitmentFormBody(req.body);
+  const parsed = futureCommitmentSchema.safeParse(body);
   if (!parsed.success) {
     req.flash("error", firstValidationMessage(parsed.error));
     res.status(422).render("layout", {
@@ -88,7 +111,9 @@ export const createFutureCommitment = async (req: Request, res: Response) => {
     });
     return;
   }
-  await db.insert(futureCommitments).values({ ...parsed.data, scenarioId: null, includeInBaseline: true, amount: toMoney(parsed.data.amount) });
+  await db
+    .insert(futureCommitments)
+    .values({ ...normalizeCommitmentValues(parsed.data), scenarioId: null, includeInBaseline: true });
   req.flash("success", "Future commitment created.");
   res.redirect("/commitments");
 };
@@ -110,7 +135,8 @@ export const editFutureCommitment = async (req: Request, res: Response) => {
 
 export const updateFutureCommitment = async (req: Request, res: Response) => {
   const existing = await getCommitment(req.params.id, { baselineOnly: true });
-  const parsed = futureCommitmentSchema.safeParse(req.body);
+  const body = normalizeCommitmentFormBody(req.body);
+  const parsed = futureCommitmentSchema.safeParse(body);
   if (!existing) {
     req.flash("error", "Future commitment not found.");
     res.redirect("/commitments");
@@ -128,7 +154,7 @@ export const updateFutureCommitment = async (req: Request, res: Response) => {
   }
   await db
     .update(futureCommitments)
-    .set({ ...parsed.data, amount: toMoney(parsed.data.amount), updatedAt: new Date() })
+    .set({ ...normalizeCommitmentValues(parsed.data), updatedAt: new Date() })
     .where(eq(futureCommitments.id, existing.id));
   req.flash("success", "Future commitment updated.");
   res.redirect("/commitments");
@@ -161,12 +187,12 @@ export const newCommitmentEntry = async (req: Request, res: Response) => {
     title: `Enter ${commitment.name}`,
     view: "commitments/enter",
     commitment,
-    entry: {
-      accountId: commitment.accountId ?? "",
-      date: isoToday(),
-      amount: commitment.amount,
-      notes: commitment.notes ?? ""
-    },
+      entry: {
+        accountId: commitment.accountId ?? "",
+        date: isoToday(),
+        amount: commitment.amount,
+        notes: commitment.notes ?? ""
+      },
     accounts: (await formData(commitment)).accounts
   });
 };
@@ -191,9 +217,9 @@ export const createCommitmentEntry = async (req: Request, res: Response) => {
     return;
   }
   try {
-    await enterCommitment(commitment.id, parsed.data);
+    const entered = await enterCommitment(commitment.id, parsed.data);
     req.flash("success", "Register transaction entered and commitment advanced.");
-    res.redirect(`/accounts/${parsed.data.accountId}/register`);
+    res.redirect(`/accounts/${entered.accountId}/register`);
   } catch (error) {
     req.flash("error", error instanceof Error ? error.message : "Could not enter commitment.");
     res.redirect("/commitments");

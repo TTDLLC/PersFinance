@@ -3,28 +3,35 @@
     <h1><%= item && item.id ? 'Edit Scenario Item' : 'Add Scenario Item' %></h1>
     <p>Scenario: <strong><%= scenario && scenario.name ? scenario.name : '' %></strong></p>
   </div>
-  <div class="form-actions">
-    <a class="button secondary-button" href="/scenarios/<%= scenario.id %>">Cancel</a>
-  </div>
 </section>
 
-<form class="form grid-form" method="post" action="<%= item && item.id ? '/scenarios/' + scenario.id + '/items/' + item.id : '/scenarios/' + scenario.id + '/items' %>">
-  <label>Name<input name="name" value="<%= item.name || "" %>" required></label>
-  <label>Payee<select name="payeeId"><option value="">None</option><% payees.forEach((payee) => { %><option value="<%= payee.id %>" <%= item.payeeId === payee.id ? "selected" : "" %>><%= payee.name %><%= payee.active ? "" : " (Archived)" %></option><% }) %></select></label>
-  <label>Category<select name="categoryId"><option value="">None</option><% categories.forEach((category) => { %><option value="<%= category.id %>" <%= item.categoryId === category.id ? "selected" : "" %>><%= category.name %><%= category.active ? "" : " (Archived)" %></option><% }) %></select></label>
-  <label>Account<select name="accountId" required><option value="">Select account</option><% accounts.forEach((account) => { %><option value="<%= account.id %>" <%= item.accountId === account.id ? "selected" : "" %>><%= account.name %><%= account.active ? "" : " (Archived)" %></option><% }) %></select></label>
-  <label>Amount<input type="number" step="0.01" name="amount" value="<%= item.amount || "" %>" required></label>
-  <label>Frequency<select name="frequency"><% frequencies.forEach((frequency) => { %><option value="<%= frequency %>" <%= item.frequency === frequency ? "selected" : "" %>><%= label(frequency) %></option><% }) %></select></label>
-  <label>Next Due Date<input type="date" name="nextDueDate" value="<%= item.nextDueDate || "" %>" required></label>
-  <label>Start Date<input type="date" name="startDate" value="<%= item.startDate || "" %>" required></label>
-  <label>End Date<input type="date" name="endDate" value="<%= item.endDate || "" %>"></label>
-  <label class="checkbox"><input type="checkbox" name="active" value="true" <%= item.active === true || item.active === "true" || item.active === "on" ? "checked" : "" %>> Active</label>
+<form id="scenario-item-form" class="form grid-form planning-form" method="post" action="<%= item && item.id ? '/scenarios/' + scenario.id + '/items/' + item.id : '/scenarios/' + scenario.id + '/items' %>" data-commitment-kind-form>
+  <% const itemKind = item.kind || "transaction"; %>
+  <% const fromAccountId = item.fromAccountId || (itemKind === "transfer" ? item.transferFromAccountId : item.accountId) || ""; %>
+  <fieldset class="radio-group planning-form-kind">
+    <legend>Item Type</legend>
+    <label class="checkbox"><input type="radio" name="kind" value="transaction" <%= itemKind === "transaction" ? "checked" : "" %>> Transaction</label>
+    <label class="checkbox"><input type="radio" name="kind" value="transfer" <%= itemKind === "transfer" ? "checked" : "" %>> Transfer</label>
+  </fieldset>
+  <label class="planning-field-name">Name<input name="name" value="<%= item.name || "" %>" required></label>
+  <label class="planning-field-payee">Payee<select name="payeeId"><option value="">None</option><% payees.forEach((payee) => { %><option value="<%= payee.id %>" <%= item.payeeId === payee.id ? "selected" : "" %>><%= payee.name %><%= payee.active ? "" : " (Archived)" %></option><% }) %></select></label>
+  <label class="planning-field-frequency">Frequency<select name="frequency"><% frequencies.forEach((frequency) => { %><option value="<%= frequency %>" <%= item.frequency === frequency ? "selected" : "" %>><%= label(frequency) %></option><% }) %></select></label>
+  <label class="planning-field-from">From Account<select name="fromAccountId" required><option value="">Select account</option><% accounts.forEach((account) => { %><option value="<%= account.id %>" <%= fromAccountId === account.id ? "selected" : "" %>><%= account.name %><%= account.active ? "" : " (Archived)" %></option><% }) %></select></label>
+  <label class="planning-field-amount">Amount<input type="number" step="0.01" name="amount" value="<%= item.amount || "" %>" required></label>
+  <label class="planning-field-to">To Account<select name="transferToAccountId" data-commitment-to-account><option value="">Select account</option><% accounts.forEach((account) => { %><option value="<%= account.id %>" <%= item.transferToAccountId === account.id ? "selected" : "" %>><%= account.name %><%= account.active ? "" : " (Archived)" %></option><% }) %></select></label>
+  <label class="planning-field-start">Start Date<input type="date" name="startDate" value="<%= item.startDate || "" %>" required></label>
+  <label class="planning-field-next">Next Due Date<input type="date" name="nextDueDate" value="<%= item.nextDueDate || "" %>" required></label>
+  <label class="planning-field-end">End Date<input type="date" name="endDate" value="<%= item.endDate || "" %>"></label>
+  <label class="checkbox planning-field-active"><input type="checkbox" name="active" value="true" <%= item.active === true || item.active === "true" || item.active === "on" ? "checked" : "" %>> Active</label>
   <label class="full">Notes<textarea name="notes"><%= item.notes || "" %></textarea></label>
   <% if (item && item.includeInBaseline) { %>
     <p class="hint full">This item is included in baseline planning and remains linked to this scenario.</p>
   <% } %>
-  <div class="form-actions full">
-    <button type="submit">Save Scenario Item</button>
+</form>
+<div class="planning-form-actions">
+  <div></div>
+  <div class="form-actions">
+    <button type="submit" form="scenario-item-form">Save Scenario Item</button>
     <a class="button secondary-button" href="/scenarios/<%= scenario.id %>">Cancel</a>
   </div>
-</form>
+</div>

@@ -9,27 +9,37 @@
   </div>
 </section>
 
-<div class="detail-layout">
+<div class="detail-layout scenario-detail-layout">
   <div>
     <section class="card">
       <h2>Scenario</h2>
-      <dl>
-        <dt>Name</dt>
-        <dd><%= scenario && scenario.name ? scenario.name : '' %></dd>
-        <dt>Description</dt>
-        <dd><%= scenario && scenario.description ? scenario.description : '—' %></dd>
-        <dt>Notes</dt>
-        <dd><%= scenario && scenario.notes ? scenario.notes : '—' %></dd>
-        <dt>Status</dt>
-        <dd><%= scenario && scenario.active ? 'Active' : 'Archived' %></dd>
-        <dt>Accounts</dt>
-        <dd>
-          <% if (!accounts || !accounts.length) { %>
-            <span class="muted">No linked accounts.</span>
-          <% } else { %>
-            <%= accounts.map((account) => account.name).join(", ") %>
-          <% } %>
-        </dd>
+      <dl class="scenario-summary-grid">
+        <div class="scenario-summary-field">
+          <dt>Name</dt>
+          <dd><%= scenario && scenario.name ? scenario.name : '' %></dd>
+        </div>
+        <div class="scenario-summary-field">
+          <dt>Status</dt>
+          <dd><span class="status"><%= scenario && scenario.active ? 'Active' : 'Archived' %></span></dd>
+        </div>
+        <div class="scenario-summary-field scenario-summary-field-wide">
+          <dt>Accounts</dt>
+          <dd>
+            <% if (!accounts || !accounts.length) { %>
+              <span class="muted">No linked accounts.</span>
+            <% } else { %>
+              <%= accounts.map((account) => account.name).join(", ") %>
+            <% } %>
+          </dd>
+        </div>
+        <div class="scenario-summary-field scenario-summary-field-wide">
+          <dt>Description</dt>
+          <dd><%= scenario && scenario.description ? scenario.description : '—' %></dd>
+        </div>
+        <div class="scenario-summary-field scenario-summary-field-wide">
+          <dt>Notes</dt>
+          <dd><%= scenario && scenario.notes ? scenario.notes : '—' %></dd>
+        </div>
       </dl>
       <div class="form-actions">
         <a class="button" href="/scenarios/<%= scenario.id %>/edit">Edit Details</a>
@@ -67,7 +77,13 @@
             <% items.forEach((item) => { %>
               <tr class="<%= item.active ? "" : "muted" %>">
                 <td><%= item.nextDueDate %></td>
-                <td><%= item.accountName || item.accountId || "Unassigned" %></td>
+                <td>
+                  <% if (item.kind === "transfer") { %>
+                    <%= item.transferFromAccountName || "From account" %> &rarr; <%= item.transferToAccountName || "To account" %>
+                  <% } else { %>
+                    <%= item.accountName || item.accountId || "Unassigned" %>
+                  <% } %>
+                </td>
                 <td class="<%= signedClass(item.amount) %>"><%= accountingMoney(item.amount) %></td>
                 <td><%= item.name || '' %></td>
                 <td><%= label(item.frequency) %></td>

@@ -35,7 +35,8 @@ const cleanup = async () => {
   await db.delete(futureCommitments).where(like(futureCommitments.name, `${scenarioPrefix}%`));
   const smokeAccounts = await db.select({ id: accounts.id }).from(accounts).where(inArray(accounts.name, [
     `${accountPrefix} Checking`,
-    `${accountPrefix} Savings`
+    `${accountPrefix} Savings`,
+    `${accountPrefix} Card`
   ]));
   const smokeIds = smokeAccounts.map((row) => row.id);
   if (smokeIds.length) {
@@ -119,6 +120,11 @@ const main = async () => {
     name: `${accountPrefix} Savings`,
     type: "savings",
     startingInformation: { balance: "300.00", date: "2026-01-01" }
+  });
+  const card = await Accounts.createAccount({
+    name: `${accountPrefix} Card`,
+    type: "credit_card",
+    startingInformation: { balance: "12000.00", date: "2026-01-01" }
   });
 
   await db.insert(users).values({
@@ -225,8 +231,103 @@ const main = async () => {
     items = await listScenarioCommitments(scenario.id);
     assert(items[0].amount === "225.00" && items[0].nextDueDate === "2026-06-21", "Edit scenario item through HTTP should update date and amount.");
 
+    const invalidTransferResponse = await postForm(
+      `${server.baseUrl}/scenarios/${scenario.id}/items`,
+      cookie,
+      new URLSearchParams({
+        kind: "transfer",
+        name: "Invalid transfer",
+        transferFromAccountId: checking.id,
+        transferToAccountId: checking.id,
+        amount: "-50.00",
+        frequency: "once",
+        nextDueDate: "2026-06-22",
+        startDate: "2026-06-22",
+        endDate: "2026-06-22",
+        notes: "",
+        payeeId: "",
+        categoryId: "",
+        accountId: "",
+        active: "true"
+      })
+    );
+    assert(invalidTransferResponse.status === 302, "Same-account transfer scenario item should redirect with validation failure.");
+    items = await listScenarioCommitments(scenario.id);
+    assert(!items.some((item) => item.name === "Invalid transfer"), "Same-account transfer scenario item should not be created.");
+
+    await postForm(
+      `${server.baseUrl}/scenarios/${scenario.id}/items`,
+      cookie,
+      new URLSearchParams({
+        kind: "transfer",
+        name: "Move cash",
+        transferFromAccountId: checking.id,
+        transferToAccountId: savings.id,
+        amount: "-60.00",
+        frequency: "once",
+        nextDueDate: "2026-06-22",
+        startDate: "2026-06-22",
+        endDate: "2026-06-22",
+        notes: "",
+        payeeId: "",
+        categoryId: "",
+        accountId: "",
+        active: "true"
+      })
+    );
+    items = await listScenarioCommitments(scenario.id);
+    const transferItem = items.find((item) => item.name === "Move cash");
+    assert(
+      transferItem?.kind === "transfer" &&
+        transferItem.amount === "-60.00" &&
+        transferItem.transferFromAccountName === `${accountPrefix} Checking` &&
+        transferItem.transferToAccountName === `${accountPrefix} Savings`,
+      "Create/list transfer scenario item should persist transfer direction."
+    );
+    await postForm(
+      `${server.baseUrl}/scenarios/${scenario.id}/items`,
+      cookie,
+      new URLSearchParams({
+        kind: "transfer",
+        name: "Pay card",
+        transferFromAccountId: checking.id,
+        transferToAccountId: card.id,
+        amount: "-70.00",
+        frequency: "once",
+        nextDueDate: "2026-06-22",
+        startDate: "2026-06-22",
+        endDate: "2026-06-22",
+        notes: "",
+        payeeId: "",
+        categoryId: "",
+        accountId: "",
+        active: "true"
+      })
+    );
+    items = await listScenarioCommitments(scenario.id);
+    const cardTransferItem = items.find((item) => item.name === "Pay card");
+    assert(
+      cardTransferItem?.kind === "transfer" &&
+        cardTransferItem.amount === "-70.00" &&
+        cardTransferItem.transferFromAccountName === `${accountPrefix} Checking` &&
+        cardTransferItem.transferToAccountName === `${accountPrefix} Card`,
+      "Create/list credit-card transfer scenario item should persist transfer direction."
+    );
+    if (!transferItem) throw new Error("Transfer scenario item was not created.");
+    if (!cardTransferItem) throw new Error("Credit card transfer scenario item was not created.");
+    const transferEdit = await getHtml(`${server.baseUrl}/scenarios/${scenario.id}/items/${transferItem.id}/edit`, cookie);
+    assert(transferEdit.html.includes('value="-60.00"'), "Scenario transfer edit form should show signed from-account amount.");
+    assert(transferEdit.html.includes('name="fromAccountId"'), "Scenario transfer edit form should use the unified From Account field.");
+    assert(!transferEdit.html.includes('name="accountId"'), "Scenario transfer edit form should not show a separate Account field.");
+    assert(!transferEdit.html.includes('name="categoryId"'), "Scenario transfer edit form should not show Category.");
+    assert((transferEdit.html.match(/name="amount"/g) ?? []).length === 1, "Scenario transfer edit form should have one Amount field.");
+    const cardTransferEdit = await getHtml(`${server.baseUrl}/scenarios/${scenario.id}/items/${cardTransferItem.id}/edit`, cookie);
+    assert(cardTransferEdit.html.includes('value="-70.00"'), "Credit card scenario transfer edit form should show signed from-account amount.");
+    const transferDetail = await getHtml(`${server.baseUrl}/scenarios/${scenario.id}`, cookie);
+    assert(transferDetail.html.includes("Move cash") && transferDetail.html.includes(`${accountPrefix} Checking &rarr; ${accountPrefix} Savings`), "Scenario detail should display transfer direction.");
+
     await postForm(`${server.baseUrl}/scenarios/${scenario.id}/items/${items[0].id}/archive`, cookie, new URLSearchParams());
-    assert((await listScenarioCommitments(scenario.id))[0].active === false, "Archive scenario item through HTTP should retain but deactivate the row.");
+    assert((await listScenarioCommitments(scenario.id)).some((item) => item.name === "Bigger bonus" && !item.active), "Archive scenario item through HTTP should retain but deactivate the row.");
 
     await createScenarioCommitment({
       scenarioId: scenario.id,
@@ -288,6 +389,33 @@ const main = async () => {
     });
     assert(oneScenario?.mode === "scenario", "Forecast with one active selected scenario should enter scenario mode.");
     assert(oneScenario?.items.some((item) => item.name === "Bonus"), "Forecast with one active scenario should include its scenario item.");
+    assert(
+      oneScenario?.items.some((item) => item.name === "Move cash: Step 4 Smoke Checking → Step 4 Smoke Savings" && item.amount === "-60.00"),
+      "Scenario transfer should project as an outflow on the from account."
+    );
+    assert(
+      oneScenario?.items.some((item) => item.name === "Pay card: Step 4 Smoke Checking → Step 4 Smoke Card" && item.amount === "-70.00"),
+      "Scenario transfer to a credit card should project as an outflow on the checking account."
+    );
+    const destinationScenario = await getAccountProjection(savings.id, {
+      asOfDate: "2026-06-17",
+      windowDays: 30,
+      scenarioIds: [scenario.id]
+    });
+    assert(
+      destinationScenario?.items.some((item) => item.name === "Move cash: Step 4 Smoke Checking → Step 4 Smoke Savings" && item.amount === "60.00"),
+      "Scenario transfer should project as an inflow on the to account."
+    );
+    const cardScenario = await getAccountProjection(card.id, {
+      asOfDate: "2026-06-17",
+      windowDays: 30,
+      scenarioIds: [scenario.id]
+    });
+    assert(
+      cardScenario?.items.some((item) => item.name === "Pay card: Step 4 Smoke Checking → Step 4 Smoke Card" && item.amount === "-70.00"),
+      "Scenario transfer to a credit card should reduce projected card owed balance."
+    );
+    assert(cardScenario?.projectedEndingBalance === "11930.00", "Scenario credit card payment should decrease owed balance.");
 
     const stacked = await getAccountProjection(checking.id, {
       asOfDate: "2026-06-17",
@@ -295,8 +423,26 @@ const main = async () => {
       scenarioIds: [scenario.id, repair.id]
     });
     assert(
-      stacked?.items.filter((item) => item.source === "scenario_commitment").length === 2,
+      stacked?.items.filter((item) => item.source === "scenario_commitment").length === 4,
       "Forecast with two selected active scenarios should stack both scenario items."
+    );
+
+    await postForm(`${server.baseUrl}/scenarios/${scenario.id}/items/${transferItem.id}/promote`, cookie, new URLSearchParams());
+    await postForm(`${server.baseUrl}/scenarios/${scenario.id}/items/${cardTransferItem.id}/promote`, cookie, new URLSearchParams());
+    const promotedChecking = await getAccountProjection(checking.id, { asOfDate: "2026-06-17", windowDays: 30 });
+    const promotedSavings = await getAccountProjection(savings.id, { asOfDate: "2026-06-17", windowDays: 30 });
+    const promotedCard = await getAccountProjection(card.id, { asOfDate: "2026-06-17", windowDays: 30 });
+    assert(
+      promotedChecking?.items.filter((item) => item.name === "Move cash: Step 4 Smoke Checking → Step 4 Smoke Savings").length === 1,
+      "Promoted scenario transfer should appear once on the from-account baseline projection."
+    );
+    assert(
+      promotedSavings?.items.filter((item) => item.name === "Move cash: Step 4 Smoke Checking → Step 4 Smoke Savings").length === 1,
+      "Promoted scenario transfer should appear once on the to-account baseline projection."
+    );
+    assert(
+      promotedCard?.items.filter((item) => item.name === "Pay card: Step 4 Smoke Checking → Step 4 Smoke Card" && item.amount === "-70.00").length === 1,
+      "Promoted credit-card scenario transfer should preserve the payment sign."
     );
 
     const archivedProjection = await getAccountProjection(checking.id, {

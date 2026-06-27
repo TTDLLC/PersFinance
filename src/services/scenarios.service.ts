@@ -4,6 +4,7 @@ import {
   desc,
   eq,
   inArray,
+  or,
   SQL
 } from "drizzle-orm";
 import { sql } from "drizzle-orm";
@@ -193,7 +194,14 @@ export const getScenarioAccountOptions = async (scenarioId: string) =>
         type: accounts.type
       })
       .from(futureCommitments)
-      .innerJoin(accounts, eq(futureCommitments.accountId, accounts.id))
+      .innerJoin(
+        accounts,
+        or(
+          eq(futureCommitments.accountId, accounts.id),
+          eq(futureCommitments.transferFromAccountId, accounts.id),
+          eq(futureCommitments.transferToAccountId, accounts.id)
+        )
+      )
       .where(and(eq(futureCommitments.scenarioId, scenarioId), eq(accounts.active, true)))
   ]).then(([linkedRows, commitmentRows]) => {
     const byId = new Map([...linkedRows, ...commitmentRows].map((account) => [account.id, account]));
@@ -251,7 +259,11 @@ export const listActiveScenarioIdsForAccount = async (accountId: string, scenari
     .where(
       and(
         eq(scenarios.active, true),
-        eq(futureCommitments.accountId, accountId),
+        or(
+          eq(futureCommitments.accountId, accountId),
+          eq(futureCommitments.transferFromAccountId, accountId),
+          eq(futureCommitments.transferToAccountId, accountId)
+        ),
         inArray(scenarios.id, selectedIds),
         eq(futureCommitments.includeInBaseline, false),
         eq(futureCommitments.active, true)

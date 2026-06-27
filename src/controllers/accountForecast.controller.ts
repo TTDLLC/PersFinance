@@ -1,12 +1,12 @@
 import type { Request, Response } from "express";
-import { and, eq } from "drizzle-orm";
+import { and, eq, or } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { futureCommitments, scenarios } from "../db/schema.js";
-import { getAccountProjection, projectionWindows } from "../services/projections.service.js";
+import { defaultProjectionWindowDays, getAccountProjection, maxProjectionWindowDays, normalizeProjectionWindowDays } from "../services/projections.service.js";
 
 const selectedWindowDays = (value: unknown) => {
-  const option = Number(Array.isArray(value) ? value[value.length - 1] : value);
-  return projectionWindows.includes(option as (typeof projectionWindows)[number]) ? option : 30;
+  const option = Array.isArray(value) ? value[value.length - 1] : value;
+  return normalizeProjectionWindowDays(Number(option));
 };
 
 const selectedScenarioIds = (value: unknown) => {
@@ -21,7 +21,7 @@ const selectedAsOfDate = (value: unknown) => {
 
 export const showAccountForecast = async (req: Request, res: Response) => {
   const accountId = req.params.accountId;
-  const windowDays = selectedWindowDays(req.query.window);
+  const windowDays = selectedWindowDays(req.query.windowDays ?? req.query.window);
   const scenarioIds = selectedScenarioIds(req.query.scenarioIds);
   const asOfDate = selectedAsOfDate(req.query.asOfDate);
 
@@ -48,7 +48,11 @@ export const showAccountForecast = async (req: Request, res: Response) => {
     .where(
       and(
         eq(scenarios.active, true),
-        eq(futureCommitments.accountId, accountId),
+        or(
+          eq(futureCommitments.accountId, accountId),
+          eq(futureCommitments.transferFromAccountId, accountId),
+          eq(futureCommitments.transferToAccountId, accountId)
+        ),
         eq(futureCommitments.includeInBaseline, false),
         eq(futureCommitments.active, true)
       )
@@ -59,7 +63,8 @@ export const showAccountForecast = async (req: Request, res: Response) => {
     title: `${projection.account.name} Forecast`,
     view: "accounts/forecast",
     projection,
-    projectionWindows,
+    defaultProjectionWindowDays,
+    maxProjectionWindowDays,
     scenarioOptions,
     selectedScenarioIds: projection.selectedScenarioIds
   });

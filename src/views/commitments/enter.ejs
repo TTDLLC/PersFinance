@@ -1,9 +1,14 @@
 <section class="page-header">
   <h1>Enter <%= commitment.name %></h1>
-  <p>This creates a normal entered register transaction and advances the commitment.</p>
+  <p><%= commitment.kind === "transfer" ? "This creates a linked register transfer and advances the commitment." : "This creates a normal entered register transaction and advances the commitment." %></p>
 </section>
 <form method="post" action="/commitments/<%= commitment.id %>/enter" class="form grid-form">
-  <label>Account<select name="accountId" required><option value="">Select account</option><% accounts.forEach((item) => { %><option value="<%= item.id %>" <%= entry.accountId === item.id ? "selected" : "" %>><%= item.name %></option><% }) %></select></label>
+  <% if (commitment.kind === "transfer") { %>
+    <p class="hint full">Transfer: <strong><%= accounts.find((item) => item.id === commitment.transferFromAccountId)?.name || "From account" %> &rarr; <%= accounts.find((item) => item.id === commitment.transferToAccountId)?.name || "To account" %></strong></p>
+    <input type="hidden" name="accountId" value="">
+  <% } else { %>
+    <label>Account<select name="accountId" required><option value="">Select account</option><% accounts.forEach((item) => { %><option value="<%= item.id %>" <%= entry.accountId === item.id ? "selected" : "" %>><%= item.name %></option><% }) %></select></label>
+  <% } %>
   <label>Transaction Date<input type="date" name="date" value="<%= entry.date || "" %>" required></label>
   <label>Amount<input type="number" step="0.01" name="amount" value="<%= entry.amount || "" %>" required></label>
   <label class="full">Notes<textarea name="notes"><%= entry.notes || "" %></textarea></label>

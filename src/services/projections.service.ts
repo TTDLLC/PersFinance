@@ -1,11 +1,18 @@
-import { and, asc, eq, gt, inArray, isNull, lte, ne } from "drizzle-orm";
+import { and, asc, eq, gt, inArray, isNull, lte, ne, or } from "drizzle-orm";
+import { aliasedTable } from "drizzle-orm/alias";
 import { db } from "../db/index.js";
 import { accounts, categories, futureCommitments, payees, transactions } from "../db/schema.js";
 import { advanceDueDate, isoToday } from "./futureCommitments.service.js";
 import { listActiveScenarioIdsForAccount } from "./scenarios.service.js";
 
-export const projectionWindows = [30, 60, 90] as const;
-export type ProjectionWindowDays = (typeof projectionWindows)[number];
+export const defaultProjectionWindowDays = 30;
+export const maxProjectionWindowDays = 730;
+export const normalizeProjectionWindowDays = (windowDays: number | undefined) => {
+  if (!Number.isFinite(windowDays)) return defaultProjectionWindowDays;
+  const normalized = Math.trunc(Number(windowDays));
+  if (normalized < 1) return defaultProjectionWindowDays;
+  return Math.min(normalized, maxProjectionWindowDays);
+};
 
 export type ProjectionItemSource = "future_commitment" | "transfer" | "future_transaction" | "scenario_commitment";
 
@@ -32,7 +39,7 @@ export type AccountProjection = {
     type: typeof accounts.$inferSelect.type;
   };
   asOfDate: string;
-  windowDays: ProjectionWindowDays;
+  windowDays: number;
   windowEndDate: string;
   projectionStartBalance: string;
   projectedEndingBalance: string;
@@ -62,6 +69,9 @@ const sourceOrder: Record<ProjectionItemSource, number> = {
 };
 
 const assetAccountTypes = new Set<typeof accounts.$inferSelect.type>(["checking", "savings", "cash"]);
+const liabilityAccountTypes = new Set<typeof accounts.$inferSelect.type>(["credit_card", "loan"]);
+const transferFromAccounts = aliasedTable(accounts, "projection_transfer_from_accounts");
+const transferToAccounts = aliasedTable(accounts, "projection_transfer_to_accounts");
 
 const toNumber = (value: string | number | null | undefined) => Number(value ?? 0);
 const toCents = (value: string | number | null | undefined) => Math.round(toNumber(value) * 100);
@@ -71,11 +81,6 @@ const addDays = (date: string, days: number) => {
   const value = new Date(`${date}T00:00:00.000Z`);
   value.setUTCDate(value.getUTCDate() + days);
   return value.toISOString().slice(0, 10);
-};
-
-const normalizeWindowDays = (windowDays: number | undefined): ProjectionWindowDays => {
-  if (windowDays === 60 || windowDays === 90) return windowDays;
-  return 30;
 };
 
 const compareItems = (left: RawProjectionItem, right: RawProjectionItem) => {
@@ -88,6 +93,40 @@ const compareItems = (left: RawProjectionItem, right: RawProjectionItem) => {
   if (leftName !== rightName) return leftName.localeCompare(rightName);
   return left.id.localeCompare(right.id);
 };
+
+const commitmentAccountFilter = (accountId: string) =>
+  or(
+    eq(futureCommitments.accountId, accountId),
+    eq(futureCommitments.transferFromAccountId, accountId),
+    eq(futureCommitments.transferToAccountId, accountId)
+  );
+
+const commitmentAmountCentsForAccount = (row: {
+  kind: typeof futureCommitments.$inferSelect.kind;
+  accountId: string | null;
+  transferFromAccountId: string | null;
+  transferFromAccountType: typeof accounts.$inferSelect.type | null;
+  transferToAccountId: string | null;
+  transferToAccountType: typeof accounts.$inferSelect.type | null;
+  amount: string;
+}, accountId: string) => {
+  const amountCents = toCents(row.amount);
+  if (row.kind === "transfer") {
+    if (row.transferFromAccountId === accountId) return amountCents;
+    if (row.transferToAccountId === accountId) return liabilityAccountTypes.has(row.transferToAccountType!) ? -Math.abs(amountCents) : Math.abs(amountCents);
+  }
+  return toCents(row.amount);
+};
+
+const commitmentName = (row: {
+  kind: typeof futureCommitments.$inferSelect.kind;
+  name: string;
+  transferFromAccountName: string | null;
+  transferToAccountName: string | null;
+}) =>
+  row.kind === "transfer"
+    ? `${row.name}: ${row.transferFromAccountName ?? "From account"} → ${row.transferToAccountName ?? "To account"}`
+    : row.name;
 
 const getProjectionStartBalanceCents = async (accountId: string, statementChainBalance: string, asOfDate: string) => {
   const rows = await db
@@ -151,7 +190,15 @@ const getFutureCommitmentItems = async (accountId: string, asOfDate: string, win
   const rows = await db
     .select({
       id: futureCommitments.id,
+      kind: futureCommitments.kind,
       name: futureCommitments.name,
+      accountId: futureCommitments.accountId,
+      transferFromAccountId: futureCommitments.transferFromAccountId,
+      transferFromAccountName: transferFromAccounts.name,
+      transferFromAccountType: transferFromAccounts.type,
+      transferToAccountId: futureCommitments.transferToAccountId,
+      transferToAccountName: transferToAccounts.name,
+      transferToAccountType: transferToAccounts.type,
       amount: futureCommitments.amount,
       frequency: futureCommitments.frequency,
       nextDueDate: futureCommitments.nextDueDate,
@@ -160,11 +207,13 @@ const getFutureCommitmentItems = async (accountId: string, asOfDate: string, win
       categoryName: categories.name
     })
     .from(futureCommitments)
+    .leftJoin(transferFromAccounts, eq(futureCommitments.transferFromAccountId, transferFromAccounts.id))
+    .leftJoin(transferToAccounts, eq(futureCommitments.transferToAccountId, transferToAccounts.id))
     .leftJoin(payees, eq(futureCommitments.payeeId, payees.id))
     .leftJoin(categories, eq(futureCommitments.categoryId, categories.id))
     .where(
       and(
-        eq(futureCommitments.accountId, accountId),
+        commitmentAccountFilter(accountId),
         eq(futureCommitments.includeInBaseline, true),
         eq(futureCommitments.active, true),
         lte(futureCommitments.nextDueDate, windowEndDate)
@@ -189,8 +238,8 @@ const getFutureCommitmentItems = async (accountId: string, asOfDate: string, win
         id: `${row.id}:${occurrenceDate}`,
         source: "future_commitment",
         date: occurrenceDate,
-        amountCents: toCents(row.amount),
-        name: row.name,
+        amountCents: commitmentAmountCentsForAccount(row, accountId),
+        name: commitmentName(row),
         payeeName: row.payeeName,
         categoryName: row.categoryName,
         status: null,
@@ -216,7 +265,15 @@ const getScenarioCommitmentItems = async (accountId: string, asOfDate: string, w
     .select({
       id: futureCommitments.id,
       scenarioId: futureCommitments.scenarioId,
+      kind: futureCommitments.kind,
       name: futureCommitments.name,
+      accountId: futureCommitments.accountId,
+      transferFromAccountId: futureCommitments.transferFromAccountId,
+      transferFromAccountName: transferFromAccounts.name,
+      transferFromAccountType: transferFromAccounts.type,
+      transferToAccountId: futureCommitments.transferToAccountId,
+      transferToAccountName: transferToAccounts.name,
+      transferToAccountType: transferToAccounts.type,
       amount: futureCommitments.amount,
       frequency: futureCommitments.frequency,
       nextDueDate: futureCommitments.nextDueDate,
@@ -225,11 +282,13 @@ const getScenarioCommitmentItems = async (accountId: string, asOfDate: string, w
       categoryName: categories.name
     })
     .from(futureCommitments)
+    .leftJoin(transferFromAccounts, eq(futureCommitments.transferFromAccountId, transferFromAccounts.id))
+    .leftJoin(transferToAccounts, eq(futureCommitments.transferToAccountId, transferToAccounts.id))
     .leftJoin(payees, eq(futureCommitments.payeeId, payees.id))
     .leftJoin(categories, eq(futureCommitments.categoryId, categories.id))
     .where(
       and(
-        eq(futureCommitments.accountId, accountId),
+        commitmentAccountFilter(accountId),
         inArray(futureCommitments.scenarioId, scenarioIds),
         eq(futureCommitments.includeInBaseline, false),
         eq(futureCommitments.active, true),
@@ -255,8 +314,8 @@ const getScenarioCommitmentItems = async (accountId: string, asOfDate: string, w
         id: `${row.scenarioId}:${row.id}:${occurrenceDate}`,
         source: "scenario_commitment",
         date: occurrenceDate,
-        amountCents: toCents(row.amount),
-        name: row.name,
+        amountCents: commitmentAmountCentsForAccount(row, accountId),
+        name: commitmentName(row),
         payeeName: row.payeeName,
         categoryName: row.categoryName,
         status: null,
@@ -290,7 +349,7 @@ export const getAccountProjection = async (accountId: string, input: ProjectionI
   if (!account) return null;
 
   const asOfDate = input.asOfDate ?? isoToday();
-  const windowDays = normalizeWindowDays(input.windowDays);
+  const windowDays = normalizeProjectionWindowDays(input.windowDays);
   const windowEndDate = addDays(asOfDate, windowDays);
   const selectedScenarioIds = await listActiveScenarioIdsForAccount(account.id, (input.scenarioIds ?? []).filter(Boolean));
   const projectionStartBalanceCents = await getProjectionStartBalanceCents(account.id, account.statementChainBalance, asOfDate);

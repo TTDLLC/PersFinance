@@ -4,6 +4,7 @@ export const accountTypes = ["checking", "savings", "credit_card", "loan", "cash
 export const categoryTypes = ["income", "expense", "debt", "other"] as const;
 export const transactionStatuses = ["entered", "pending", "cleared", "void"] as const;
 export const commitmentFrequencies = ["once", "weekly", "biweekly", "monthly", "quarterly", "yearly"] as const;
+export const commitmentKinds = ["transaction", "transfer"] as const;
 
 const optionalText = z.string().trim().transform((value) => value || null);
 const requiredText = (field: string) => z.string().trim().min(1, `${field} is required.`);
@@ -71,7 +72,7 @@ export const reconciliationSchema = z.object({
 export const transferSchema = z
   .object({
     date: requiredDate.refine(validCalendarDate, "A valid transfer date is required."),
-    amount: numberFromForm("Amount").positive("Transfer amount must be greater than zero."),
+    amount: numberFromForm("Amount").refine((value) => value !== 0, "Amount cannot be zero."),
     sourceAccountId: z.string().uuid("A source account is required."),
     destinationAccountId: z.string().uuid("A destination account is required."),
     status: z.enum(["entered", "pending", "cleared"]),
@@ -84,10 +85,13 @@ export const transferSchema = z
 
 export const futureCommitmentSchema = z
   .object({
+    kind: z.enum(commitmentKinds).default("transaction"),
     name: requiredText("Name"),
     payeeId: optionalUuid,
     categoryId: optionalUuid,
     accountId: optionalUuid,
+    transferFromAccountId: optionalUuid,
+    transferToAccountId: optionalUuid,
     amount: numberFromForm("Amount").refine((value) => value !== 0, "Amount cannot be zero."),
     frequency: z.enum(commitmentFrequencies),
     nextDueDate: requiredDate.refine(validCalendarDate, "A valid next due date is required."),
@@ -110,10 +114,26 @@ export const futureCommitmentSchema = z
   .refine((value) => !value.endDate || value.nextDueDate <= value.endDate, {
     message: "Next due date cannot be after end date.",
     path: ["nextDueDate"]
+  })
+  .refine((value) => value.kind !== "transaction" || Boolean(value.accountId), {
+    message: "From account is required.",
+    path: ["accountId"]
+  })
+  .refine((value) => value.kind !== "transfer" || Boolean(value.transferFromAccountId), {
+    message: "From account is required for transfer commitments.",
+    path: ["transferFromAccountId"]
+  })
+  .refine((value) => value.kind !== "transfer" || Boolean(value.transferToAccountId), {
+    message: "To account is required for transfer commitments.",
+    path: ["transferToAccountId"]
+  })
+  .refine((value) => value.kind !== "transfer" || value.transferFromAccountId !== value.transferToAccountId, {
+    message: "From and To accounts must be different.",
+    path: ["transferToAccountId"]
   });
 
 export const commitmentEntrySchema = z.object({
-  accountId: z.string().uuid("An account is required."),
+  accountId: optionalUuid,
   date: requiredDate.refine(validCalendarDate, "A valid transaction date is required."),
   amount: numberFromForm("Amount").refine((value) => value !== 0, "Amount cannot be zero."),
   notes: optionalText

@@ -81,7 +81,7 @@ export const editTransfer = async (req: Request, res: Response) => {
     {
       id: transfer.id,
       date: transfer.source.date,
-      amount: Math.abs(Number(transfer.source.amount)).toFixed(2),
+      amount: Number(transfer.source.amount).toFixed(2),
       sourceAccountId: transfer.source.accountId,
       destinationAccountId: transfer.destination.accountId,
       status: transfer.source.status,

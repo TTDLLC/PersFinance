@@ -183,6 +183,103 @@ tr:last-child td {
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
 }
 
+.forecast-chart-card {
+  margin-bottom: 18px;
+}
+
+.chart-header {
+  align-items: start;
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 10px;
+}
+
+.chart-header p {
+  color: var(--muted);
+  font-size: 13px;
+  margin: 0;
+}
+
+.chart-summary-row {
+  align-items: center;
+  border-bottom: 1px solid var(--line);
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 18px;
+  margin-bottom: 14px;
+  padding: 10px 0;
+}
+
+.chart-summary-row strong {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.chart-summary-row strong.positive {
+  color: var(--positive);
+}
+
+.chart-summary-row strong.negative {
+  color: var(--negative);
+}
+
+.forecast-chart {
+  display: block;
+  height: auto;
+  width: 100%;
+}
+
+.chart-grid-line {
+  stroke: var(--line);
+  stroke-width: 2;
+}
+
+.chart-zero-line {
+  stroke: #9aa7ad;
+  stroke-dasharray: 6 6;
+  stroke-width: 2;
+}
+
+.chart-balance-line {
+  fill: none;
+  stroke: var(--accent);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 4;
+}
+
+.chart-point {
+  fill: var(--panel);
+  stroke: var(--accent);
+  stroke-width: 3;
+}
+
+.chart-axis-label,
+.chart-date-label {
+  fill: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.chart-axis-label {
+  text-anchor: end;
+}
+
+.chart-date-label-mid {
+  text-anchor: middle;
+}
+
+.chart-date-label-end {
+  text-anchor: end;
+}
+
+.chart-empty {
+  padding: 28px 0;
+}
+
 .void-row td {
   color: var(--muted);
   text-decoration: line-through;
@@ -317,12 +414,83 @@ button:disabled {
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
 }
 
+.planning-form {
+  grid-template-columns: repeat(3, minmax(180px, 1fr));
+}
+
+.planning-form-kind {
+  grid-column: 1 / 2;
+  grid-row: 1;
+}
+
+.planning-field-name,
+.planning-field-payee,
+.planning-field-frequency {
+  grid-row: 2;
+}
+
+.planning-field-from,
+.planning-field-amount,
+.planning-field-to {
+  grid-row: 3;
+}
+
+.planning-field-start,
+.planning-field-next,
+.planning-field-end {
+  grid-row: 4;
+}
+
+.planning-field-name,
+.planning-field-from,
+.planning-field-start,
+.planning-field-active {
+  grid-column: 1;
+}
+
+.planning-field-payee,
+.planning-field-amount,
+.planning-field-next {
+  grid-column: 2;
+}
+
+.planning-field-frequency,
+.planning-field-to,
+.planning-field-end {
+  grid-column: 3;
+}
+
+.planning-field-active {
+  grid-row: 6;
+}
+
+.planning-form-actions {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 18px;
+}
+
+.planning-form-actions .form-actions {
+  justify-content: flex-end;
+  margin-top: 0;
+}
+
+.planning-form-actions .danger {
+  margin-top: 0;
+}
+
 label {
   color: #34424a;
   display: grid;
   font-size: 13px;
   font-weight: 650;
   gap: 6px;
+}
+
+.muted-field {
+  opacity: 0.65;
 }
 
 input,
@@ -386,6 +554,23 @@ textarea {
   padding: 0 4px;
 }
 
+.radio-group {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin: 0;
+  padding: 10px 12px;
+}
+
+.radio-group legend {
+  color: #34424a;
+  font-size: 13px;
+  font-weight: 650;
+  padding: 0 4px;
+}
+
 .full {
   grid-column: 1 / -1;
 }
@@ -401,6 +586,27 @@ textarea {
   display: grid;
   gap: 18px;
   grid-template-columns: minmax(240px, 320px) 1fr;
+}
+
+.scenario-detail-layout {
+  grid-template-columns: 1fr;
+}
+
+.scenario-summary-grid {
+  align-items: start;
+  column-gap: 28px;
+  grid-template-columns: minmax(180px, 1fr) minmax(120px, auto) repeat(2, minmax(220px, 1fr));
+  row-gap: 18px;
+}
+
+.scenario-summary-field {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.scenario-summary-field-wide {
+  grid-column: span 2;
 }
 
 .card h2 {
@@ -578,6 +784,7 @@ summary {
   margin: 0;
 }
 
+.embedded-filter input,
 .embedded-filter select,
 .embedded-filter button {
   height: 42px;
@@ -765,7 +972,43 @@ summary {
     justify-content: flex-start;
   }
 
+  .planning-form {
+    grid-template-columns: 1fr;
+  }
+
+  .planning-form-kind,
+  .planning-field-name,
+  .planning-field-payee,
+  .planning-field-frequency,
+  .planning-field-from,
+  .planning-field-amount,
+  .planning-field-to,
+  .planning-field-start,
+  .planning-field-next,
+  .planning-field-end,
+  .planning-field-active {
+    grid-column: 1 / -1;
+    grid-row: auto;
+  }
+
+  .planning-form-actions {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .planning-form-actions .form-actions {
+    justify-content: flex-start;
+  }
+
   .detail-layout {
     grid-template-columns: 1fr;
+  }
+
+  .scenario-summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .scenario-summary-field-wide {
+    grid-column: auto;
   }
 }

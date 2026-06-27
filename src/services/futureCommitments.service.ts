@@ -1,8 +1,11 @@
 import { and, asc, desc, eq, gte, inArray, isNull, lte, or } from "drizzle-orm";
+import { aliasedTable } from "drizzle-orm/alias";
 import { db } from "../db/index.js";
 import { accounts, categories, futureCommitments, payees, scenarios, transactions } from "../db/schema.js";
+import { createTransferRows } from "./transfers.service.js";
 
 export type CommitmentFrequency = typeof futureCommitments.$inferSelect.frequency;
+export type CommitmentKind = typeof futureCommitments.$inferSelect.kind;
 export type CommitmentFilters = {
   payeeId?: string;
   accountId?: string;
@@ -34,19 +37,53 @@ export const advanceDueDate = (date: string, frequency: CommitmentFrequency) => 
   return null;
 };
 
-const visibleCutoff = (today: string) => addDays(today, -60);
+const transferFromAccounts = aliasedTable(accounts, "transfer_from_accounts");
+const transferToAccounts = aliasedTable(accounts, "transfer_to_accounts");
+
+const accountFilter = (accountId: string) =>
+  or(
+    eq(futureCommitments.accountId, accountId),
+    eq(futureCommitments.transferFromAccountId, accountId),
+    eq(futureCommitments.transferToAccountId, accountId)
+  );
+
+type NormalizableCommitmentInput = Omit<typeof futureCommitments.$inferInsert, "amount"> & {
+  amount: number | string;
+};
+
+export const normalizeCommitmentValues = (input: NormalizableCommitmentInput): typeof futureCommitments.$inferInsert => {
+  const kind = input.kind ?? "transaction";
+  if (kind === "transfer") {
+    return {
+      ...input,
+      kind,
+      accountId: null,
+      categoryId: null,
+      amount: typeof input.amount === "number" ? toMoney(input.amount) : input.amount
+    };
+  }
+  return {
+    ...input,
+    kind,
+    transferFromAccountId: null,
+    transferToAccountId: null,
+    amount: typeof input.amount === "number" ? toMoney(input.amount) : input.amount
+  };
+};
 
 export const listCommitments = async (showAll = false, today = isoToday(), filters: CommitmentFilters = {}) => {
   const conditions = [
     eq(futureCommitments.includeInBaseline, true),
-    showAll ? undefined : or(isNull(futureCommitments.endDate), gte(futureCommitments.endDate, visibleCutoff(today)))
+    showAll ? undefined : eq(futureCommitments.active, true),
+    showAll ? undefined : or(isNull(futureCommitments.endDate), gte(futureCommitments.endDate, today))
   ];
   if (filters.payeeId) conditions.push(eq(futureCommitments.payeeId, filters.payeeId));
-  if (filters.accountId) conditions.push(eq(futureCommitments.accountId, filters.accountId));
+  if (filters.accountId) conditions.push(accountFilter(filters.accountId)!);
 
   return db
     .select({
       id: futureCommitments.id,
+      kind: futureCommitments.kind,
       name: futureCommitments.name,
       payeeId: futureCommitments.payeeId,
       payeeName: payees.name,
@@ -54,6 +91,10 @@ export const listCommitments = async (showAll = false, today = isoToday(), filte
       categoryName: categories.name,
       accountId: futureCommitments.accountId,
       accountName: accounts.name,
+      transferFromAccountId: futureCommitments.transferFromAccountId,
+      transferFromAccountName: transferFromAccounts.name,
+      transferToAccountId: futureCommitments.transferToAccountId,
+      transferToAccountName: transferToAccounts.name,
       amount: futureCommitments.amount,
       frequency: futureCommitments.frequency,
       nextDueDate: futureCommitments.nextDueDate,
@@ -69,6 +110,8 @@ export const listCommitments = async (showAll = false, today = isoToday(), filte
     .leftJoin(payees, eq(futureCommitments.payeeId, payees.id))
     .leftJoin(categories, eq(futureCommitments.categoryId, categories.id))
     .leftJoin(accounts, eq(futureCommitments.accountId, accounts.id))
+    .leftJoin(transferFromAccounts, eq(futureCommitments.transferFromAccountId, transferFromAccounts.id))
+    .leftJoin(transferToAccounts, eq(futureCommitments.transferToAccountId, transferToAccounts.id))
     .leftJoin(scenarios, eq(futureCommitments.scenarioId, scenarios.id))
     .where(and(...conditions))
     .orderBy(asc(futureCommitments.nextDueDate), asc(futureCommitments.name));
@@ -88,19 +131,47 @@ export const getOverdueCommitments = async (accountId?: string, today = isoToday
     lte(futureCommitments.nextDueDate, today),
     or(isNull(futureCommitments.endDate), lte(futureCommitments.nextDueDate, futureCommitments.endDate))!
   ];
-  if (accountId) filters.push(eq(futureCommitments.accountId, accountId));
+  if (accountId) filters.push(accountFilter(accountId)!);
   return db.select().from(futureCommitments).where(and(...filters)).orderBy(asc(futureCommitments.nextDueDate));
 };
 
 export const enterCommitment = async (
   commitmentId: string,
-  input: { accountId: string; date: string; amount: number; notes?: string | null }
+  input: { accountId?: string | null; date: string; amount: number; notes?: string | null }
 ) =>
   db.transaction(async (tx) => {
     const [commitment] = await tx.select().from(futureCommitments).where(eq(futureCommitments.id, commitmentId)).limit(1);
     if (!commitment || !commitment.active) throw new Error("Active commitment not found.");
     if (!commitment.includeInBaseline) throw new Error("Scenario-only commitments cannot be entered into the register.");
 
+    if (commitment.kind === "transfer") {
+      if (!commitment.transferFromAccountId || !commitment.transferToAccountId) {
+        throw new Error("Transfer commitments require from and to accounts.");
+      }
+      const transferId = await createTransferRows(tx, {
+        date: input.date,
+        amount: input.amount,
+        sourceAccountId: commitment.transferFromAccountId,
+        destinationAccountId: commitment.transferToAccountId,
+        status: "entered",
+        notes: input.notes ?? commitment.notes
+      });
+
+      const nextDueDate = advanceDueDate(commitment.nextDueDate, commitment.frequency);
+      const remainsActive = Boolean(nextDueDate && (!commitment.endDate || nextDueDate <= commitment.endDate));
+      await tx
+        .update(futureCommitments)
+        .set({
+          nextDueDate: nextDueDate ?? commitment.nextDueDate,
+          active: remainsActive,
+          updatedAt: new Date()
+        })
+        .where(eq(futureCommitments.id, commitment.id));
+
+      return { id: transferId, transferId, accountId: commitment.transferFromAccountId };
+    }
+
+    if (!input.accountId) throw new Error("An active account is required.");
     const [account] = await tx.select().from(accounts).where(and(eq(accounts.id, input.accountId), eq(accounts.active, true))).limit(1);
     if (!account) throw new Error("An active account is required.");
 
@@ -116,7 +187,7 @@ export const enterCommitment = async (
         description: commitment.name,
         notes: input.notes ?? commitment.notes
       })
-      .returning({ id: transactions.id });
+      .returning({ id: transactions.id, accountId: transactions.accountId });
 
     const nextDueDate = advanceDueDate(commitment.nextDueDate, commitment.frequency);
     const remainsActive = Boolean(nextDueDate && (!commitment.endDate || nextDueDate <= commitment.endDate));
@@ -138,6 +209,9 @@ export type ScenarioCommitmentInput = {
   payeeId?: string | null;
   categoryId?: string | null;
   accountId?: string | null;
+  kind?: CommitmentKind;
+  transferFromAccountId?: string | null;
+  transferToAccountId?: string | null;
   amount: number | string;
   frequency: CommitmentFrequency;
   nextDueDate: string;
@@ -151,6 +225,7 @@ export const listScenarioCommitments = async (scenarioId: string) =>
   db
     .select({
       id: futureCommitments.id,
+      kind: futureCommitments.kind,
       name: futureCommitments.name,
       payeeId: futureCommitments.payeeId,
       payeeName: payees.name,
@@ -158,6 +233,10 @@ export const listScenarioCommitments = async (scenarioId: string) =>
       categoryName: categories.name,
       accountId: futureCommitments.accountId,
       accountName: accounts.name,
+      transferFromAccountId: futureCommitments.transferFromAccountId,
+      transferFromAccountName: transferFromAccounts.name,
+      transferToAccountId: futureCommitments.transferToAccountId,
+      transferToAccountName: transferToAccounts.name,
       amount: futureCommitments.amount,
       frequency: futureCommitments.frequency,
       nextDueDate: futureCommitments.nextDueDate,
@@ -174,6 +253,8 @@ export const listScenarioCommitments = async (scenarioId: string) =>
     .leftJoin(payees, eq(futureCommitments.payeeId, payees.id))
     .leftJoin(categories, eq(futureCommitments.categoryId, categories.id))
     .leftJoin(accounts, eq(futureCommitments.accountId, accounts.id))
+    .leftJoin(transferFromAccounts, eq(futureCommitments.transferFromAccountId, transferFromAccounts.id))
+    .leftJoin(transferToAccounts, eq(futureCommitments.transferToAccountId, transferToAccounts.id))
     .where(eq(futureCommitments.scenarioId, scenarioId))
     .orderBy(desc(futureCommitments.active), asc(futureCommitments.nextDueDate), asc(futureCommitments.name));
 
@@ -185,7 +266,14 @@ export const listScenarioAccounts = async (scenarioId: string) =>
       type: accounts.type
     })
     .from(futureCommitments)
-    .innerJoin(accounts, eq(futureCommitments.accountId, accounts.id))
+    .innerJoin(
+      accounts,
+      or(
+        eq(futureCommitments.accountId, accounts.id),
+        eq(futureCommitments.transferFromAccountId, accounts.id),
+        eq(futureCommitments.transferToAccountId, accounts.id)
+      )
+    )
     .where(and(eq(futureCommitments.scenarioId, scenarioId), eq(accounts.active, true)))
     .orderBy(accounts.name);
 
@@ -202,8 +290,7 @@ export const createScenarioCommitment = async (input: ScenarioCommitmentInput) =
   db
     .insert(futureCommitments)
     .values({
-      ...input,
-      amount: typeof input.amount === "number" ? toMoney(input.amount) : input.amount,
+      ...normalizeCommitmentValues(input),
       includeInBaseline: false,
       active: input.active ?? true
     })
@@ -213,8 +300,7 @@ export const updateScenarioCommitment = async (scenarioId: string, commitmentId:
   db
     .update(futureCommitments)
     .set({
-      ...input,
-      amount: typeof input.amount === "number" ? toMoney(input.amount) : input.amount,
+      ...normalizeCommitmentValues(input),
       scenarioId,
       updatedAt: new Date()
     })

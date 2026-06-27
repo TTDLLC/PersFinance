@@ -1,6 +1,35 @@
 <% const liabilityAccount = ["credit_card", "loan"].includes(projection.account.type); %>
 <% const projectionMoney = (value) => liabilityAccount ? money(Math.abs(Number(value || 0))) : accountingMoney(value); %>
 <% const projectionClass = (value) => liabilityAccount ? "amount" : signedClass(value); %>
+<%
+  const chartPoints = [
+    { date: projection.asOfDate, label: "Start", balance: Number(projection.projectionStartBalance || 0) },
+    ...projection.items.map((item) => ({ date: item.date, label: item.name, balance: Number(item.runningBalance || 0) }))
+  ];
+  const chartValues = chartPoints.map((point) => point.balance);
+  const chartMin = Math.min(...chartValues);
+  const chartMax = Math.max(...chartValues);
+  const chartRange = chartMax - chartMin || 1;
+  const chartPadding = Math.max(chartRange * 0.08, 1);
+  const chartScaleMin = chartMin - chartPadding;
+  const chartScaleMax = chartMax + chartPadding;
+  const chartScaleRange = chartScaleMax - chartScaleMin || 1;
+  const chartNetChange = Number(projection.projectedEndingBalance || 0) - Number(projection.projectionStartBalance || 0);
+  const chartWidth = 1000;
+  const chartHeight = 340;
+  const chartPlotLeft = 118;
+  const chartPlotRight = 948;
+  const chartPlotTop = 26;
+  const chartPlotBottom = 274;
+  const chartInnerWidth = chartPlotRight - chartPlotLeft;
+  const chartInnerHeight = chartPlotBottom - chartPlotTop;
+  const chartX = (index) => chartPoints.length === 1 ? chartPlotLeft + chartInnerWidth / 2 : chartPlotLeft + (index / (chartPoints.length - 1)) * chartInnerWidth;
+  const chartY = (balance) => chartPlotTop + ((chartScaleMax - balance) / chartScaleRange) * chartInnerHeight;
+  const chartPolyline = chartPoints.map((point, index) => `${chartX(index).toFixed(2)},${chartY(point.balance).toFixed(2)}`).join(" ");
+  const chartZeroY = chartMin <= 0 && chartMax >= 0 ? chartY(0) : null;
+  const chartMidIndex = chartPoints.length > 4 ? Math.floor((chartPoints.length - 1) / 2) : null;
+  const chartDataJson = JSON.stringify(chartPoints).replace(/</g, "\\u003c");
+%>
 
 <section class="page-header row">
   <div>
@@ -14,13 +43,10 @@
 </section>
 
 <form class="filter-bar embedded-filter" method="get" action="/accounts/<%= projection.account.id %>/forecast">
-  <label>Window
-    <select name="window">
-      <% projectionWindows.forEach((windowDays) => { %>
-        <option value="<%= windowDays %>" <%= projection.windowDays === windowDays ? "selected" : "" %>><%= windowDays %> days</option>
-      <% }) %>
-    </select>
+  <label>Forecast days
+    <input type="number" name="windowDays" min="1" max="<%= maxProjectionWindowDays %>" step="1" value="<%= projection.windowDays || defaultProjectionWindowDays %>">
   </label>
+  <input type="hidden" name="asOfDate" value="<%= projection.asOfDate %>">
   <% if (scenarioOptions && scenarioOptions.length) { %>
     <label>Scenarios
       <select name="scenarioIds" multiple size="<%= Math.min(scenarioOptions.length, 6) %>">
@@ -33,7 +59,7 @@
   <% } %>
   <button type="submit">Update</button>
   <% if (projection.selectedScenarioIds.length) { %>
-    <a class="button secondary-button" href="/accounts/<%= projection.account.id %>/forecast?window=<%= projection.windowDays %>">Clear scenarios</a>
+    <a class="button secondary-button" href="/accounts/<%= projection.account.id %>/forecast?windowDays=<%= projection.windowDays %>&asOfDate=<%= projection.asOfDate %>">Clear scenarios</a>
   <% } %>
 </form>
 
@@ -60,6 +86,47 @@
     <span>Projected High Balance</span>
     <strong class="<%= projectionClass(projection.projectedHighBalance) %>"><%= projectionMoney(projection.projectedHighBalance) %></strong>
   </div>
+</section>
+
+<section class="card forecast-chart-card" aria-labelledby="forecast-chart-heading">
+  <div class="chart-header">
+    <div>
+      <h2 id="forecast-chart-heading">Projected Balance Trend</h2>
+      <p>Running balance from <%= projection.asOfDate %> through <%= projection.windowEndDate %>.</p>
+    </div>
+  </div>
+  <div class="chart-summary-row" aria-label="Projected balance chart summary">
+    <span>Starting: <strong><%= projectionMoney(projection.projectionStartBalance) %></strong></span>
+    <span>Ending: <strong><%= projectionMoney(projection.projectedEndingBalance) %></strong></span>
+    <span>Low: <strong><%= projectionMoney(projection.projectedLowBalance) %></strong></span>
+    <span>High: <strong><%= projectionMoney(projection.projectedHighBalance) %></strong></span>
+    <span>Net change: <strong class="<%= signedClass(chartNetChange) %>"><%= accountingMoney(chartNetChange.toFixed(2)) %></strong></span>
+  </div>
+  <% if (!projection.items.length) { %>
+    <div class="empty-state chart-empty">No projected activity in this window.</div>
+  <% } else { %>
+    <script type="application/json" data-forecast-chart-points><%- chartDataJson %></script>
+    <svg class="forecast-chart" viewBox="0 0 <%= chartWidth %> <%= chartHeight %>" role="img" aria-labelledby="forecast-chart-heading">
+      <line class="chart-grid-line" x1="<%= chartPlotLeft %>" y1="<%= chartPlotTop %>" x2="<%= chartPlotLeft %>" y2="<%= chartPlotBottom %>"></line>
+      <line class="chart-grid-line" x1="<%= chartPlotLeft %>" y1="<%= chartPlotBottom %>" x2="<%= chartPlotRight %>" y2="<%= chartPlotBottom %>"></line>
+      <% if (chartZeroY !== null) { %>
+        <line class="chart-zero-line" x1="<%= chartPlotLeft %>" y1="<%= chartZeroY.toFixed(2) %>" x2="<%= chartPlotRight %>" y2="<%= chartZeroY.toFixed(2) %>"></line>
+      <% } %>
+      <text class="chart-axis-label" x="<%= chartPlotLeft - 12 %>" y="<%= chartY(chartScaleMax).toFixed(2) %>" dominant-baseline="hanging"><%= projectionMoney(chartScaleMax.toFixed(2)) %></text>
+      <text class="chart-axis-label" x="<%= chartPlotLeft - 12 %>" y="<%= chartY(chartScaleMin).toFixed(2) %>" dominant-baseline="auto"><%= projectionMoney(chartScaleMin.toFixed(2)) %></text>
+      <polyline class="chart-balance-line" points="<%= chartPolyline %>"></polyline>
+      <% chartPoints.forEach((point, index) => { %>
+        <circle class="chart-point" cx="<%= chartX(index).toFixed(2) %>" cy="<%= chartY(point.balance).toFixed(2) %>" r="<%= index === 0 ? 4.5 : 3.5 %>">
+          <title><%= point.date %>: <%= projectionMoney(point.balance.toFixed(2)) %><%= point.label ? ` - ${point.label}` : "" %></title>
+        </circle>
+      <% }) %>
+      <text class="chart-date-label" x="<%= chartPlotLeft %>" y="<%= chartPlotBottom + 32 %>"><%= chartPoints[0].date %></text>
+      <% if (chartMidIndex !== null) { %>
+        <text class="chart-date-label chart-date-label-mid" x="<%= chartX(chartMidIndex).toFixed(2) %>" y="<%= chartPlotBottom + 32 %>"><%= chartPoints[chartMidIndex].date %></text>
+      <% } %>
+      <text class="chart-date-label chart-date-label-end" x="<%= chartPlotRight %>" y="<%= chartPlotBottom + 32 %>"><%= chartPoints[chartPoints.length - 1].date %></text>
+    </svg>
+  <% } %>
 </section>
 
 <% if (projection.warningDates.length) { %>

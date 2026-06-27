@@ -14,62 +14,67 @@ export type TransferInput = {
   notes?: string | null;
 };
 
+const liabilityAccountTypes = new Set<typeof accounts.$inferSelect.type>(["credit_card", "loan"]);
 const toMoney = (value: number) => value.toFixed(2);
+const transferAmountForAccount = (role: "source" | "destination", account: Pick<typeof accounts.$inferSelect, "type">, amount: number) => {
+  if (role === "source") return amount;
+  return liabilityAccountTypes.has(account.type) ? -Math.abs(amount) : Math.abs(amount);
+};
 
-const loadAccounts = async (accountIds: string[]) => {
-  const rows = await db.select({ id: accounts.id, name: accounts.name, active: accounts.active }).from(accounts);
+const loadAccounts = async (executor: Pick<typeof db, "select">, accountIds: string[]) => {
+  const rows = await executor.select({ id: accounts.id, name: accounts.name, type: accounts.type, active: accounts.active }).from(accounts);
   return rows.filter((row) => accountIds.includes(row.id));
 };
 
-const validateAccounts = async (input: TransferInput) => {
+const validateAccounts = async (executor: Pick<typeof db, "select">, input: TransferInput) => {
   if (input.sourceAccountId === input.destinationAccountId) {
     throw new Error("Source and destination accounts must be different.");
   }
-  const rows = await loadAccounts([input.sourceAccountId, input.destinationAccountId]);
+  const rows = await loadAccounts(executor, [input.sourceAccountId, input.destinationAccountId]);
   if (rows.length !== 2 || rows.some((row) => !row.active)) {
     throw new Error("Transfers require two active accounts.");
   }
   return new Map(rows.map((row) => [row.id, row]));
 };
 
-export const createTransfer = async (input: TransferInput) => {
-  const accountMap = await validateAccounts(input);
+export const createTransferRows = async (executor: Pick<typeof db, "select" | "insert">, input: TransferInput) => {
+  const accountMap = await validateAccounts(executor, input);
   const source = accountMap.get(input.sourceAccountId);
   const destination = accountMap.get(input.destinationAccountId);
   if (!source || !destination) throw new Error("Transfer accounts were not found.");
 
-  return db.transaction(async (tx) => {
-    const transferId = randomUUID();
+  const transferId = randomUUID();
 
-    await tx.insert(transactions).values([
-      {
-        transferId,
-        accountId: source.id,
-        date: input.date,
-        amount: toMoney(-Math.abs(input.amount)),
-        status: input.status,
-        description: `Transfer to ${destination.name}`,
-        notes: input.notes ?? null
-      },
-      {
-        transferId,
-        accountId: destination.id,
-        date: input.date,
-        amount: toMoney(Math.abs(input.amount)),
-        status: input.status,
-        description: `Transfer from ${source.name}`,
-        notes: input.notes ?? null
-      }
-    ]);
-    return transferId;
-  });
+  await executor.insert(transactions).values([
+    {
+      transferId,
+      accountId: source.id,
+      date: input.date,
+      amount: toMoney(transferAmountForAccount("source", source, input.amount)),
+      status: input.status,
+      description: `Transfer to ${destination.name}`,
+      notes: input.notes ?? null
+    },
+    {
+      transferId,
+      accountId: destination.id,
+      date: input.date,
+      amount: toMoney(transferAmountForAccount("destination", destination, input.amount)),
+      status: input.status,
+      description: `Transfer from ${source.name}`,
+      notes: input.notes ?? null
+    }
+  ]);
+  return transferId;
 };
+
+export const createTransfer = async (input: TransferInput) => db.transaction((tx) => createTransferRows(tx, input));
 
 export const getTransfer = async (transferId: string) => {
   const rows = await db.select().from(transactions).where(eq(transactions.transferId, transferId));
   if (rows.length !== 2) return null;
-  const source = rows.find((row) => Number(row.amount) < 0);
-  const destination = rows.find((row) => Number(row.amount) > 0);
+  const source = rows.find((row) => row.description?.startsWith("Transfer to ")) ?? rows.find((row) => Number(row.amount) < 0);
+  const destination = rows.find((row) => row.description?.startsWith("Transfer from ")) ?? rows.find((row) => Number(row.amount) > 0);
   if (!source || !destination) return null;
   return {
     id: transferId,
@@ -80,7 +85,7 @@ export const getTransfer = async (transferId: string) => {
 };
 
 export const updateTransfer = async (transferId: string, input: TransferInput) => {
-  const accountMap = await validateAccounts(input);
+  const accountMap = await validateAccounts(db, input);
   const sourceAccount = accountMap.get(input.sourceAccountId);
   const destinationAccount = accountMap.get(input.destinationAccountId);
   if (!sourceAccount || !destinationAccount) throw new Error("Transfer accounts were not found.");
@@ -90,8 +95,8 @@ export const updateTransfer = async (transferId: string, input: TransferInput) =
     if (rows.length !== 2) throw new Error("Transfer is incomplete and cannot be edited.");
     if (rows.some((row) => row.statementId)) throw new Error("Reconciled transfers are locked and cannot be edited.");
 
-    const source = rows.find((row) => Number(row.amount) < 0);
-    const destination = rows.find((row) => Number(row.amount) > 0);
+    const source = rows.find((row) => row.description?.startsWith("Transfer to ")) ?? rows.find((row) => Number(row.amount) < 0);
+    const destination = rows.find((row) => row.description?.startsWith("Transfer from ")) ?? rows.find((row) => Number(row.amount) > 0);
     if (!source || !destination) throw new Error("Transfer sides are invalid.");
 
     await tx
@@ -99,7 +104,7 @@ export const updateTransfer = async (transferId: string, input: TransferInput) =
       .set({
         accountId: sourceAccount.id,
         date: input.date,
-        amount: toMoney(-Math.abs(input.amount)),
+        amount: toMoney(transferAmountForAccount("source", sourceAccount, input.amount)),
         status: input.status,
         description: `Transfer to ${destinationAccount.name}`,
         notes: input.notes ?? null,
@@ -112,7 +117,7 @@ export const updateTransfer = async (transferId: string, input: TransferInput) =
       .set({
         accountId: destinationAccount.id,
         date: input.date,
-        amount: toMoney(Math.abs(input.amount)),
+        amount: toMoney(transferAmountForAccount("destination", destinationAccount, input.amount)),
         status: input.status,
         description: `Transfer from ${sourceAccount.name}`,
         notes: input.notes ?? null,
