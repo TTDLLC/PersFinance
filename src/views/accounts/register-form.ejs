@@ -1,23 +1,77 @@
-<section class="page-header"><h1><%= transaction.id ? "Edit Transaction" : "New Transaction" %></h1></section>
-<form method="post" action="<%= transaction.id ? `/accounts/${account.id}/register/${transaction.id}` : `/accounts/${account.id}/register` %>" class="form grid-form">
-  <label>Date<input type="date" name="date" value="<%= transaction.date || "" %>" required></label>
-  <label>Payee
-    <select name="payeeId">
-      <option value="">Select payee</option>
-      <% payees.forEach((payee) => { %><option value="<%= payee.id %>" <%= transaction.payeeId === payee.id ? "selected" : "" %>><%= payee.name %><%= payee.active ? "" : " (Archived)" %></option><% }) %>
-    </select>
-  </label>
-  <div class="field-help">Need another payee? <a href="/payees">Manage payees</a>.</div>
-  <label>Category<select name="categoryId"><option value="">None</option><% categories.forEach((category) => { %><option value="<%= category.id %>" <%= transaction.categoryId === category.id ? "selected" : "" %>><%= category.name %><%= category.active ? "" : " (Archived)" %></option><% }) %></select></label>
-  <label>Amount<input type="number" step="0.01" name="amount" value="<%= transaction.amount || "" %>" required></label>
-  <label>Status<select name="status"><% statuses.forEach((status) => { %><option value="<%= status %>" <%= (transaction.status || "entered") === status ? "selected" : "" %>><%= label(status) %></option><% }) %></select></label>
-  <label class="full">Description<textarea name="description"><%= transaction.description || "" %></textarea></label>
-  <p class="field-help full">A Payee or Description is required.</p>
-  <label class="full">Notes<textarea name="notes"><%= transaction.notes || "" %></textarea></label>
-  <div class="form-actions full"><button type="submit">Save Transaction</button><a href="/accounts/<%= account.id %>/register">Cancel</a></div>
-</form>
-<% if (transaction.id && ["entered", "pending", "cleared"].includes(transaction.status) && !transaction.statementId) { %>
-  <form method="post" action="/accounts/<%= account.id %>/register/<%= transaction.id %>/void">
-    <button class="danger" type="submit">Void Transaction</button>
+<section class="page-header">
+  <h1><%= transaction.id ? "Edit Transaction" : "New Register Entry" %></h1>
+</section>
+
+<% if (!transaction.id) { %>
+  <% const registerEntryMode = entryMode || "transaction"; %>
+  <form
+    method="post"
+    action="<%= registerEntryMode === "transfer" ? `/accounts/${account.id}/register/transfers` : `/accounts/${account.id}/register` %>"
+    class="form grid-form register-entry-form"
+    data-register-entry-form
+    data-transaction-action="/accounts/<%= account.id %>/register"
+    data-transfer-action="/accounts/<%= account.id %>/register/transfers"
+  >
+    <fieldset class="radio-group register-entry-kind">
+      <legend>Entry Type</legend>
+      <label class="checkbox"><input type="radio" name="entryKind" value="transaction" <%= registerEntryMode === "transaction" ? "checked" : "" %>> Transaction</label>
+      <label class="checkbox"><input type="radio" name="entryKind" value="transfer" <%= registerEntryMode === "transfer" ? "checked" : "" %>> Transfer</label>
+    </fieldset>
+
+    <label class="register-field-date">Date<input type="date" name="date" value="<%= transaction.date || transfer.date || "" %>" required></label>
+    <label class="register-field-payee" data-register-transaction-field>Payee
+      <select name="payeeId">
+        <option value="">Select payee</option>
+        <% payees.forEach((payee) => { %><option value="<%= payee.id %>" <%= transaction.payeeId === payee.id ? "selected" : "" %>><%= payee.name %><%= payee.active ? "" : " (Archived)" %></option><% }) %>
+      </select>
+    </label>
+    <label class="register-field-status">Status<select name="status"><% statuses.forEach((status) => { %><option value="<%= status %>" <%= (transaction.status || transfer.status || "entered") === status ? "selected" : "" %>><%= label(status) %></option><% }) %></select></label>
+
+    <label class="register-field-from" data-register-transfer-field>From Account
+      <select name="sourceAccountId" required>
+        <option value="">Select source account</option>
+        <% transferAccounts.forEach((item) => { %>
+          <option value="<%= item.id %>" <%= (transfer.sourceAccountId || account.id) === item.id ? "selected" : "" %>><%= item.name %><%= item.active ? "" : " (Archived)" %></option>
+        <% }) %>
+      </select>
+    </label>
+    <label class="register-field-amount">Amount<input type="number" step="0.01" name="amount" value="<%= transaction.amount || transfer.amount || "" %>" required></label>
+    <label class="register-field-to" data-register-transfer-field>To Account
+      <select name="destinationAccountId" required>
+        <option value="">Select destination account</option>
+        <% transferAccounts.forEach((item) => { %>
+          <option value="<%= item.id %>" <%= transfer.destinationAccountId === item.id ? "selected" : "" %>><%= item.name %><%= item.active ? "" : " (Archived)" %></option>
+        <% }) %>
+      </select>
+    </label>
+
+    <label class="register-field-category" data-register-transaction-field>Category<select name="categoryId"><option value="">None</option><% categories.forEach((category) => { %><option value="<%= category.id %>" <%= transaction.categoryId === category.id ? "selected" : "" %>><%= category.name %><%= category.active ? "" : " (Archived)" %></option><% }) %></select></label>
+    <label class="full" data-register-transaction-field>Description<textarea name="description"><%= transaction.description || "" %></textarea></label>
+    <p class="field-help full" data-register-transaction-field>A Payee or Description is required. Need another payee? <a href="/payees">Manage payees</a>.</p>
+    <label class="full">Notes<textarea name="notes"><%= transaction.notes || transfer.notes || "" %></textarea></label>
+    <div class="form-actions full"><button type="submit">Save Entry</button><a class="button secondary-button" href="/accounts/<%= account.id %>/register">Cancel</a></div>
   </form>
+<% } else { %>
+  <form method="post" action="/accounts/<%= account.id %>/register/<%= transaction.id %>" class="form grid-form">
+    <label>Date<input type="date" name="date" value="<%= transaction.date || "" %>" required></label>
+    <label>Payee
+      <select name="payeeId">
+        <option value="">Select payee</option>
+        <% payees.forEach((payee) => { %><option value="<%= payee.id %>" <%= transaction.payeeId === payee.id ? "selected" : "" %>><%= payee.name %><%= payee.active ? "" : " (Archived)" %></option><% }) %>
+      </select>
+    </label>
+    <div class="field-help">Need another payee? <a href="/payees">Manage payees</a>.</div>
+    <label>Category<select name="categoryId"><option value="">None</option><% categories.forEach((category) => { %><option value="<%= category.id %>" <%= transaction.categoryId === category.id ? "selected" : "" %>><%= category.name %><%= category.active ? "" : " (Archived)" %></option><% }) %></select></label>
+    <label>Amount<input type="number" step="0.01" name="amount" value="<%= transaction.amount || "" %>" required></label>
+    <label>Status<select name="status"><% statuses.forEach((status) => { %><option value="<%= status %>" <%= (transaction.status || "entered") === status ? "selected" : "" %>><%= label(status) %></option><% }) %></select></label>
+    <label class="full">Description<textarea name="description"><%= transaction.description || "" %></textarea></label>
+    <p class="field-help full">A Payee or Description is required.</p>
+    <label class="full">Notes<textarea name="notes"><%= transaction.notes || "" %></textarea></label>
+    <div class="form-actions full"><button type="submit">Save Transaction</button><a class="button secondary-button" href="/accounts/<%= account.id %>/register">Cancel</a></div>
+  </form>
+  <% if (["entered", "pending", "cleared"].includes(transaction.status) && !transaction.statementId) { %>
+    <form method="post" action="/accounts/<%= account.id %>/register/<%= transaction.id %>/void">
+      <button class="danger" type="submit">Void Transaction</button>
+    </form>
+  <% } %>
 <% } %>

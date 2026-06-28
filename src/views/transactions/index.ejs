@@ -39,9 +39,9 @@
         <td class="<%= signedClass(item.amount) %>"><%= accountingMoney(item.amount) %></td>
         <td class="actions">
           <% if (item.transferId) { %>
-            <a href="/accounts/<%= item.accountId %>/register/transfers/<%= item.transferId %>/edit">Edit Transfer</a>
+            <a class="small-button" href="/accounts/<%= item.accountId %>/register/transfers/<%= item.transferId %>/edit">Edit Transfer</a>
           <% } else { %>
-            <a href="/transactions/<%= item.id %>/edit">Edit</a>
+            <a class="small-button" href="/transactions/<%= item.id %>/edit">Edit</a>
           <% } %>
         </td>
       </tr>

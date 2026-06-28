@@ -25,7 +25,7 @@
   </label>
   <button type="submit">Update</button>
   <% if (filters.payeeId || filters.accountId || showAll) { %>
-    <a href="/commitments">Clear</a>
+    <a class="button secondary-button" href="/commitments">Clear</a>
   <% } %>
   <a class="button secondary-button filter-bar-end" href="<%= historyToggleHref %>"><%= showAll ? "Hide All History" : "Show All History" %></a>
 </form>
@@ -57,8 +57,8 @@
         <td class="<%= signedClass(item.amount) %>"><%= accountingMoney(item.amount) %></td>
         <td><span class="status"><%= overdue ? "Due" : (item.active ? "Active" : "Ended") %></span></td>
         <td class="actions">
-          <% if (overdue) { %><a href="/commitments/<%= item.id %>/enter">Enter</a><% } %>
-          <a href="/commitments/<%= item.id %>/edit">Edit</a>
+          <% if (item.active) { %><a class="small-button" href="/commitments/<%= item.id %>/enter"><%= overdue ? "Enter" : "Enter Early" %></a><% } %>
+          <a class="small-button" href="/commitments/<%= item.id %>/edit">Edit</a>
         </td>
       </tr>
     <% }) %>

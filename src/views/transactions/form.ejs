@@ -15,6 +15,6 @@
   <label class="full">Description<textarea name="description"><%= transaction.description || "" %></textarea></label>
   <p class="field-help full">A Payee or Description is required.</p>
   <label class="full">Notes<textarea name="notes"><%= transaction.notes || "" %></textarea></label>
-  <div class="form-actions full"><button type="submit">Save</button><a href="/transactions">Cancel</a></div>
+  <div class="form-actions full"><button type="submit">Save</button><a class="button secondary-button" href="/transactions">Cancel</a></div>
 </form>
 <% if (transaction.id && ["entered", "pending", "cleared"].includes(transaction.status) && !transaction.statementId) { %><form method="post" action="/transactions/<%= transaction.id %>/void"><button class="danger" type="submit">Void Transaction</button></form><% } %>

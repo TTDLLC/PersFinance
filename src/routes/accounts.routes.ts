@@ -15,6 +15,7 @@ import {
 } from "../controllers/accountStatements.controller.js";
 import {
   createAccountRegisterTransaction,
+  bulkUpdateRegisterStatus,
   editAccountRegisterTransaction,
   newAccountRegisterTransaction,
   showAccountRegister,
@@ -52,6 +53,7 @@ accountsRoutes.post("/:accountId/imports/confirm", confirmTransactionImport);
 accountsRoutes.post("/:accountId/imports/:batchId/delete", deleteTransactionImportBatch);
 accountsRoutes.get("/:accountId/register/new", newAccountRegisterTransaction);
 accountsRoutes.post("/:accountId/register", createAccountRegisterTransaction);
+accountsRoutes.post("/:accountId/register/status", bulkUpdateRegisterStatus);
 accountsRoutes.get("/:accountId/register/transfers/new", newTransfer);
 accountsRoutes.post("/:accountId/register/transfers", createAccountTransfer);
 accountsRoutes.get("/:accountId/register/transfers/:transferId/edit", editTransfer);

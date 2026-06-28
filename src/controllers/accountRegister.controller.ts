@@ -1,12 +1,14 @@
 import type { Request, Response } from "express";
-import { asc, desc, eq, or } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, or } from "drizzle-orm";
 import { db } from "../db/index.js";
-import { categories, payees, transactions } from "../db/schema.js";
+import { accounts, categories, payees, transactions } from "../db/schema.js";
 import { Accounts } from "../services/accounts.service.js";
+import type { RegisterStatus } from "../services/account.service.js";
 import {
   editableRegisterStatuses,
   findRegisterTransaction,
   getAccountRegister,
+  normalizeRegisterStatuses,
   voidableRegisterStatuses
 } from "../services/accountRegister.service.js";
 import {
@@ -18,10 +20,10 @@ import {
 const today = () => new Date().toISOString().slice(0, 10);
 const toMoney = (value: number) => value.toFixed(2);
 
-const selectedView = (value: unknown) => {
+const selectedStatuses = (value: unknown) => {
   const option = Array.isArray(value) ? value[value.length - 1] : value;
-  if (option === "all" || option === "void") return option;
-  return "active";
+  if (option === "all") return ["entered", "pending", "cleared", "void"] satisfies RegisterStatus[];
+  return normalizeRegisterStatuses(value);
 };
 
 const getFormData = async (currentCategoryId?: string | null, currentPayeeId?: string | null) => ({
@@ -38,6 +40,13 @@ const getFormData = async (currentCategoryId?: string | null, currentPayeeId?: s
   statuses: transactionStatuses.filter((status) => status !== "void")
 });
 
+const getTransferAccounts = async (currentIds: string[] = []) =>
+  db
+    .select()
+    .from(accounts)
+    .where(currentIds.length ? or(eq(accounts.active, true), ...currentIds.map((id) => eq(accounts.id, id))) : eq(accounts.active, true))
+    .orderBy(desc(accounts.active), asc(accounts.name));
+
 const categoryIsSelectable = async (categoryId: string | null, existingCategoryId?: string | null) => {
   if (!categoryId) return true;
   const [category] = await db.select({ id: categories.id, active: categories.active }).from(categories).where(eq(categories.id, categoryId)).limit(1);
@@ -47,7 +56,7 @@ const categoryIsSelectable = async (categoryId: string | null, existingCategoryI
 const redirectToRegister = (accountId: string) => `/accounts/${accountId}/register`;
 
 export const showAccountRegister = async (req: Request, res: Response) => {
-  const register = await getAccountRegister(req.params.accountId, selectedView(req.query.view));
+  const register = await getAccountRegister(req.params.accountId, selectedStatuses(req.query.status));
 
   if (!register) {
     req.flash("error", "Account not found.");
@@ -79,6 +88,15 @@ export const newAccountRegisterTransaction = async (req: Request, res: Response)
       accountId: account.id,
       status: "entered"
     },
+    transfer: {
+      date: today(),
+      amount: "",
+      sourceAccountId: account.id,
+      destinationAccountId: "",
+      status: "entered"
+    },
+    entryMode: req.query.mode === "transfer" ? "transfer" : "transaction",
+    transferAccounts: await getTransferAccounts([account.id]),
     ...(await getFormData())
   });
 };
@@ -102,6 +120,15 @@ export const createAccountRegisterTransaction = async (req: Request, res: Respon
       view: "accounts/register-form",
       account: account.data,
       transaction: { ...req.body, accountId: account.id },
+      transfer: {
+        date: today(),
+        amount: "",
+        sourceAccountId: account.id,
+        destinationAccountId: "",
+        status: "entered"
+      },
+      entryMode: "transaction",
+      transferAccounts: await getTransferAccounts([account.id]),
       ...(await getFormData())
     });
     return;
@@ -228,5 +255,39 @@ export const voidAccountRegisterTransaction = async (req: Request, res: Response
 
   await db.update(transactions).set({ status: "void", updatedAt: new Date() }).where(eq(transactions.id, transaction.id));
   req.flash("success", "Register transaction voided.");
+  res.redirect(redirectToRegister(account.id));
+};
+
+export const bulkUpdateRegisterStatus = async (req: Request, res: Response) => {
+  const account = await Accounts.getAccount(req.params.accountId);
+  if (!account) {
+    req.flash("error", "Account not found.");
+    res.redirect("/accounts");
+    return;
+  }
+
+  const status = typeof req.body.status === "string" ? req.body.status : "";
+  const rawIds: unknown[] = Array.isArray(req.body.selectedTransactionIds) ? req.body.selectedTransactionIds : [req.body.selectedTransactionIds];
+  const selectedTransactionIds = [...new Set(rawIds.filter((id): id is string => typeof id === "string" && id.length > 0))];
+
+  if (!["entered", "pending", "cleared"].includes(status) || !selectedTransactionIds.length) {
+    req.flash("error", "Select transactions and choose Entered, Pending, or Cleared.");
+    res.redirect(redirectToRegister(account.id));
+    return;
+  }
+
+  await db
+    .update(transactions)
+    .set({ status: status as (typeof editableRegisterStatuses)[number], updatedAt: new Date() })
+    .where(
+      and(
+        eq(transactions.accountId, account.id),
+        inArray(transactions.id, selectedTransactionIds),
+        isNull(transactions.statementId),
+        inArray(transactions.status, [...editableRegisterStatuses])
+      )
+    );
+
+  req.flash("success", "Selected transaction statuses updated.");
   res.redirect(redirectToRegister(account.id));
 };

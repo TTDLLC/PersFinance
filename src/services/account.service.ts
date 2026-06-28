@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray, isNotNull, isNull, ne, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, isNull, ne, or, sql } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { accounts, accountStatements, categories, payees, transactions } from "../db/schema.js";
 
@@ -6,7 +6,7 @@ type Db = typeof db;
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type Client = Db | Tx;
 type AccountRow = typeof accounts.$inferSelect;
-type TransactionStatus = typeof transactions.$inferSelect.status;
+export type RegisterStatus = typeof transactions.$inferSelect.status;
 
 export type BalanceDetails = {
   currentBalance: string;
@@ -15,7 +15,7 @@ export type BalanceDetails = {
   asOf: string;
 };
 
-export type RegisterView = "active" | "all" | "void";
+export type RegisterView = RegisterStatus | "all";
 
 export type ReconciliationInput = {
   statementDate: string;
@@ -33,7 +33,7 @@ export type ReconciliationPreview = {
   calculatedReconciledBalance: string;
   difference: string;
   selectedTransactionIds: Set<string>;
-  eligibleTransactions: Awaited<ReturnType<Account["getActiveTransactions"]>>;
+  eligibleTransactions: Awaited<ReturnType<typeof transactionRows>>;
 };
 
 const toNumber = (value: string | number | null | undefined) => Number(value ?? 0);
@@ -97,13 +97,13 @@ export class Account {
   async getBalance(): Promise<string>;
   async getBalance(options: { extended: true }): Promise<BalanceDetails>;
   async getBalance(options?: { extended?: boolean }) {
-    const [activeTotal] = await db
+    const [clearedTotal] = await db
       .select({ total: sql<string>`coalesce(sum(${transactions.amount}), 0)` })
       .from(transactions)
-      .where(and(eq(transactions.accountId, this.id), isNull(transactions.statementId), ne(transactions.status, "void")));
+      .where(and(eq(transactions.accountId, this.id), isNull(transactions.statementId), eq(transactions.status, "cleared")));
 
     const statementBalance = toCents(this.row.statementChainBalance);
-    const activeTransactionTotal = toCents(activeTotal?.total);
+    const activeTransactionTotal = toCents(clearedTotal?.total);
     const currentBalance = (statementBalance + activeTransactionTotal) / 100;
 
     if (options?.extended) {
@@ -118,8 +118,16 @@ export class Account {
     return displayBalance(this.row, currentBalance);
   }
 
-  async getActiveTransactions() {
-    return transactionRows(this.id, "active");
+  async getEnteredTransactions() {
+    return transactionRows(this.id, "entered");
+  }
+
+  async getPendingTransactions() {
+    return transactionRows(this.id, "pending");
+  }
+
+  async getClearedTransactions() {
+    return transactionRows(this.id, "cleared");
   }
 
   async getAllTransactions() {
@@ -128,6 +136,10 @@ export class Account {
 
   async getVoidTransactions() {
     return transactionRows(this.id, "void");
+  }
+
+  async getTransactionsByStatuses(statuses: RegisterStatus[]) {
+    return transactionRows(this.id, statuses);
   }
 
   async getStatement(statementId: string) {
@@ -189,7 +201,7 @@ export class Account {
 
   async previewReconciliation(input: ReconciliationInput): Promise<ReconciliationPreview> {
     const selectedTransactionIds = [...new Set(input.selectedTransactionIds)];
-    const eligibleTransactions = await this.getActiveTransactions();
+    const eligibleTransactions = await transactionRows(this.id, "reconciliation");
     const selectedSet = new Set(selectedTransactionIds);
     const selectedTransactionTotal = eligibleTransactions.reduce(
       (sum, transaction) => sum + (selectedSet.has(transaction.id) ? toCents(transaction.amount) : 0),
@@ -295,13 +307,23 @@ export const loadAccount = async (client: Client, accountId: string) => {
   return account ?? null;
 };
 
-const transactionRows = async (accountId: string, view: RegisterView | "statement", statementId?: string) => {
+const transactionRows = async (accountId: string, view: RegisterView | RegisterStatus[] | "statement" | "reconciliation", statementId?: string) => {
   const filters = [eq(transactions.accountId, accountId)];
 
-  if (view === "active") {
+  if (Array.isArray(view)) {
+    const selectedStatuses = [...new Set(view)];
+    const activeStatuses = selectedStatuses.filter((status) => status !== "void");
+    const statusFilters = [
+      activeStatuses.length ? and(isNull(transactions.statementId), inArray(transactions.status, activeStatuses)) : undefined,
+      selectedStatuses.includes("void") ? eq(transactions.status, "void") : undefined
+    ].filter((filter): filter is NonNullable<typeof filter> => Boolean(filter));
+    filters.push(statusFilters.length ? or(...statusFilters)! : sql`false`);
+  } else if (view === "entered" || view === "pending" || view === "cleared") {
+    filters.push(isNull(transactions.statementId), eq(transactions.status, view));
+  } else if (view === "reconciliation") {
     filters.push(isNull(transactions.statementId), ne(transactions.status, "void"));
   } else if (view === "all") {
-    filters.push(ne(transactions.status, "void"));
+    // No additional filter; the account register's All view includes every status.
   } else if (view === "void") {
     filters.push(eq(transactions.status, "void"));
   } else if (view === "statement" && statementId) {

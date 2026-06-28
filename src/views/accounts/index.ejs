@@ -9,28 +9,29 @@
   </div>
 </section>
 <table>
-  <thead><tr><th>Name</th><th>Type</th><th>Current Balance</th><th>Status</th><th>Actions</th></tr></thead>
+  <thead><tr><th>Name</th><th>Current Balance</th><th></th></tr></thead>
   <tbody>
     <% if (!accounts.length) { %>
-      <tr><td class="empty-state" colspan="5">No accounts yet. Add an account to start building the register.</td></tr>
+      <tr><td class="empty-state" colspan="3">No accounts yet. Add an account to start building the register.</td></tr>
     <% } %>
-    <% accounts.forEach((account) => { %>
-      <tr class="<%= account.active ? "" : "muted" %>">
-        <td>
-          <%= account.name %>
-          <% if (!account.active) { %>
-            <span class="status">Archived</span>
-          <% } %>
-        </td>
-        <td><%= label(account.type) %></td>
-        <td class="<%= signedClass(account.currentBalance) %>"><%= money(account.currentBalance) %></td>
-        <td><span class="status"><%= account.active ? "Active" : "Archived" %></span></td>
-        <td class="actions account-actions">
-          <a class="small-button" href="/accounts/<%= account.id %>/register">Register</a>
-          <a class="small-button" href="/accounts/<%= account.id %>/forecast">Forecast</a>
-          <a class="small-button" href="/accounts/<%= account.id %>/register/new">New Transaction</a>
-        </td>
-      </tr>
+    <% groupedAccounts.forEach((group) => { %>
+      <tr class="account-type-row"><th colspan="3"><%= group.label %></th></tr>
+      <% group.accounts.forEach((account) => { %>
+        <tr class="<%= account.active ? "" : "muted" %>">
+          <td>
+            <%= account.name %>
+            <% if (!account.active) { %>
+              <span class="status">Archived</span>
+            <% } %>
+          </td>
+          <td class="<%= signedClass(account.currentBalance) %>"><%= money(account.currentBalance) %></td>
+          <td class="actions account-actions">
+            <a class="small-button" href="/accounts/<%= account.id %>/register">Register</a>
+            <a class="small-button" href="/accounts/<%= account.id %>/forecast">Forecast</a>
+            <a class="small-button" href="/accounts/<%= account.id %>/register/new">New Entry</a>
+          </td>
+        </tr>
+      <% }) %>
     <% }) %>
   </tbody>
 </table>

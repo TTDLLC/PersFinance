@@ -93,6 +93,71 @@ document.querySelectorAll("[data-commitment-kind-form]").forEach((form) => {
   });
 });
 
+document.querySelectorAll("[data-register-entry-form]").forEach((form) => {
+  const transactionFields = [...form.querySelectorAll("[data-register-transaction-field]")];
+  const transferFields = [...form.querySelectorAll("[data-register-transfer-field]")];
+
+  const setFieldsEnabled = (fields, enabled) => {
+    fields.forEach((field) => {
+      field.hidden = !enabled;
+      field.classList.toggle("muted-field", !enabled);
+      field.querySelectorAll("input, select, textarea").forEach((input) => {
+        input.disabled = !enabled;
+      });
+    });
+  };
+
+  const syncRegisterEntryKind = () => {
+    const kind = form.querySelector("input[name='entryKind']:checked")?.value || "transaction";
+    const transfer = kind === "transfer";
+    form.action = transfer ? form.dataset.transferAction : form.dataset.transactionAction;
+    setFieldsEnabled(transactionFields, !transfer);
+    setFieldsEnabled(transferFields, transfer);
+  };
+
+  syncRegisterEntryKind();
+  form.addEventListener("change", (event) => {
+    if (event.target instanceof HTMLInputElement && event.target.name === "entryKind") syncRegisterEntryKind();
+  });
+});
+
+document.querySelectorAll("[data-auto-submit-filter]").forEach((form) => {
+  form.addEventListener("change", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLSelectElement || target instanceof HTMLInputElement)) return;
+    if (target.matches("[data-register-status-all]")) {
+      form.querySelectorAll("[data-register-status-filter] input[name='status']").forEach((input) => {
+        input.checked = target.checked;
+      });
+    } else if (target.name === "status") {
+      const statuses = [...form.querySelectorAll("[data-register-status-filter] input[name='status']")];
+      const all = form.querySelector("[data-register-status-all]");
+      if (all instanceof HTMLInputElement) all.checked = statuses.every((input) => input.checked);
+    }
+    form.submit();
+  });
+});
+
+{
+  const checkboxes = [...document.querySelectorAll("[data-register-transaction]")];
+  let lastChecked = null;
+  checkboxes.forEach((input) => {
+  input.addEventListener("click", (event) => {
+    if (!(event.target instanceof HTMLInputElement)) return;
+    if (event.shiftKey && lastChecked) {
+      const lastIndex = checkboxes.indexOf(lastChecked);
+      const targetIndex = checkboxes.indexOf(event.target);
+      const start = Math.min(lastIndex, targetIndex);
+      const end = Math.max(lastIndex, targetIndex);
+      checkboxes.slice(start, end + 1).forEach((candidate) => {
+        candidate.checked = event.target.checked;
+      });
+    }
+    lastChecked = event.target;
+  });
+  });
+}
+
 const importFilterButtons = [...document.querySelectorAll("[data-import-filter]")];
 const importPreviewRows = [...document.querySelectorAll("[data-import-preview-row]")];
 const importFilterEmpty = document.querySelector("[data-import-filter-empty]");

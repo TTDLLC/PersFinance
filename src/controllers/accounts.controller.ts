@@ -16,13 +16,35 @@ const queryFlag = (value: unknown, defaultValue: boolean) => {
   return defaultValue;
 };
 
+const accountGroupOrder = ["checking", "savings", "credit_card", "loan", "other"] as const;
+const accountGroupLabels: Record<(typeof accountGroupOrder)[number], string> = {
+  checking: "Checking",
+  savings: "Savings",
+  credit_card: "Credit Card",
+  loan: "Loans",
+  other: "Others"
+};
+const accountGroupKey = (type: string): (typeof accountGroupOrder)[number] =>
+  type === "checking" || type === "savings" || type === "credit_card" || type === "loan" ? type : "other";
+
 export const listAccounts = async (req: Request, res: Response) => {
   const showArchived = queryFlag(req.query.showArchived, false);
   const rows = await Accounts.list({ activeOnly: !showArchived });
+  const groupedAccounts = rows.reduce<Array<{ type: string; label: string; accounts: typeof rows }>>((groups, account) => {
+    const type = accountGroupKey(String(account.type));
+    const group = groups.find((item) => item.type === type);
+    if (group) {
+      group.accounts.push(account);
+    } else {
+      groups.push({ type, label: accountGroupLabels[type], accounts: [account] });
+    }
+    return groups;
+  }, []).sort((left, right) => accountGroupOrder.indexOf(left.type as (typeof accountGroupOrder)[number]) - accountGroupOrder.indexOf(right.type as (typeof accountGroupOrder)[number]));
   res.render("layout", {
     title: "Accounts",
     view: "accounts/index",
     accounts: rows,
+    groupedAccounts,
     showArchived,
     archiveToggleHref: archiveToggleHref("/accounts", req.query, showArchived)
   });

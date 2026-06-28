@@ -117,6 +117,36 @@ export const listCommitments = async (showAll = false, today = isoToday(), filte
     .orderBy(asc(futureCommitments.nextDueDate), asc(futureCommitments.name));
 };
 
+export const listUpcomingCommitments = async (today = isoToday(), windowDays = 14) =>
+  db
+    .select({
+      id: futureCommitments.id,
+      kind: futureCommitments.kind,
+      name: futureCommitments.name,
+      payeeName: payees.name,
+      accountName: accounts.name,
+      transferFromAccountName: transferFromAccounts.name,
+      transferToAccountName: transferToAccounts.name,
+      amount: futureCommitments.amount,
+      nextDueDate: futureCommitments.nextDueDate,
+      endDate: futureCommitments.endDate,
+      active: futureCommitments.active
+    })
+    .from(futureCommitments)
+    .leftJoin(payees, eq(futureCommitments.payeeId, payees.id))
+    .leftJoin(accounts, eq(futureCommitments.accountId, accounts.id))
+    .leftJoin(transferFromAccounts, eq(futureCommitments.transferFromAccountId, transferFromAccounts.id))
+    .leftJoin(transferToAccounts, eq(futureCommitments.transferToAccountId, transferToAccounts.id))
+    .where(
+      and(
+        eq(futureCommitments.includeInBaseline, true),
+        eq(futureCommitments.active, true),
+        lte(futureCommitments.nextDueDate, addDays(today, windowDays)),
+        or(isNull(futureCommitments.endDate), lte(futureCommitments.nextDueDate, futureCommitments.endDate))!
+      )
+    )
+    .orderBy(asc(futureCommitments.nextDueDate), asc(futureCommitments.name));
+
 export const getCommitment = async (id: string, options?: { baselineOnly?: boolean }) => {
   const filters = [eq(futureCommitments.id, id)];
   if (options?.baselineOnly) filters.push(eq(futureCommitments.includeInBaseline, true));

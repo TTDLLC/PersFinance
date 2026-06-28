@@ -53,9 +53,9 @@ const main = async () => {
     ]);
 
     const details = await account.getBalance({ extended: true });
-    assert(details.currentBalance === "1050.00", "Current Balance should include active entered/pending/cleared transactions and exclude void.");
+    assert(details.currentBalance === "1200.00", "Current Balance should include cleared transactions only and exclude entered, pending, and void.");
     assert(details.statementBalance === "1000.00", "Extended balance should expose statement-chain balance.");
-    assert(details.activeTransactionTotal === "50.00", "Extended balance should expose active transaction total.");
+    assert(details.activeTransactionTotal === "200.00", "Extended balance should expose cleared transaction total.");
 
     const debtAccount = await Accounts.createAccount({
       name: `${testAccountName} Credit Card`,

@@ -24,7 +24,7 @@
         <td><%= category.name %></td>
         <td><%= label(category.type) %></td>
         <td><span class="status"><%= category.active ? "Active" : "Archived" %></span></td>
-        <td class="actions"><a href="/categories/<%= category.id %>/edit">Edit</a></td>
+        <td class="actions"><a class="small-button" href="/categories/<%= category.id %>/edit">Edit</a></td>
       </tr>
     <% }) %>
   </tbody>

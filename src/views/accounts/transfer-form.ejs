@@ -36,7 +36,7 @@
   <label class="full">Notes<textarea name="notes" <%= locked ? "disabled" : "" %>><%= transfer.notes || "" %></textarea></label>
   <div class="form-actions full">
     <% if (!locked) { %><button type="submit">Save Transfer</button><% } %>
-    <a href="/accounts/<%= accountId %>/register">Cancel</a>
+    <a class="button secondary-button" href="/accounts/<%= accountId %>/register">Cancel</a>
   </div>
 </form>
 <% if (transfer.id && !locked) { %>

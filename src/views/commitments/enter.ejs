@@ -12,5 +12,5 @@
   <label>Transaction Date<input type="date" name="date" value="<%= entry.date || "" %>" required></label>
   <label>Amount<input type="number" step="0.01" name="amount" value="<%= entry.amount || "" %>" required></label>
   <label class="full">Notes<textarea name="notes"><%= entry.notes || "" %></textarea></label>
-  <div class="form-actions full"><button type="submit">Enter Transaction</button><a href="/commitments">Cancel</a></div>
+  <div class="form-actions full"><button type="submit">Enter Transaction</button><a class="button secondary-button" href="/commitments">Cancel</a></div>
 </form>

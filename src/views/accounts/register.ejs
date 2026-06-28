@@ -10,8 +10,7 @@
     </p>
   </div>
   <div class="form-actions">
-    <a class="button" href="/accounts/<%= register.account.id %>/register/new">New Transaction</a>
-    <a class="button secondary-button" href="/accounts/<%= register.account.id %>/register/transfers/new">New Transfer</a>
+    <a class="button" href="/accounts/<%= register.account.id %>/register/new">New Entry</a>
     <a class="button secondary-button" href="/accounts/<%= register.account.id %>/forecast">Forecast</a>
     <a class="button secondary-button" href="/accounts/<%= register.account.id %>/imports">Import CSV</a>
     <a class="button secondary-button" href="/accounts/<%= register.account.id %>/statements">Statements</a>
@@ -19,36 +18,58 @@
   </div>
 </section>
 
-<section class="table-panel">
-  <form class="filter-bar embedded-filter" method="get" action="/accounts/<%= register.account.id %>/register">
-    <label>View
-      <select name="view">
-        <option value="active" <%= register.view === "active" ? "selected" : "" %>>Active</option>
-        <option value="all" <%= register.view === "all" ? "selected" : "" %>>Show All</option>
-        <option value="void" <%= register.view === "void" ? "selected" : "" %>>Void</option>
-      </select>
-    </label>
-    <button type="submit">Update</button>
-  </form>
+<section class="table-panel register-panel">
+  <div class="register-sticky">
+    <form class="filter-bar embedded-filter register-filter" method="get" action="/accounts/<%= register.account.id %>/register" data-auto-submit-filter>
+      <fieldset class="checkbox-group register-status-filter" data-register-status-filter>
+        <legend>Status</legend>
+        <label class="checkbox"><input type="checkbox" name="status" value="entered" <%= register.selectedStatuses.includes("entered") ? "checked" : "" %>> Entered</label>
+        <label class="checkbox"><input type="checkbox" name="status" value="pending" <%= register.selectedStatuses.includes("pending") ? "checked" : "" %>> Pending</label>
+        <label class="checkbox"><input type="checkbox" name="status" value="cleared" <%= register.selectedStatuses.includes("cleared") ? "checked" : "" %>> Cleared</label>
+        <label class="checkbox"><input type="checkbox" name="status" value="void" <%= register.selectedStatuses.includes("void") ? "checked" : "" %>> Voided</label>
+        <label class="checkbox"><input type="checkbox" value="all" data-register-status-all <%= register.allStatusesSelected ? "checked" : "" %>> All</label>
+      </fieldset>
+      <div class="balance-summary" aria-label="Register balance summary">
+        <div><span>Current Balance</span><strong class="<%= signedClass(register.balanceSummary.currentBalance) %>"><%= accountingMoney(register.balanceSummary.currentBalance) %></strong></div>
+        <div><span>Entered Balance</span><strong class="<%= signedClass(register.balanceSummary.enteredBalance) %>"><%= accountingMoney(register.balanceSummary.enteredBalance) %></strong></div>
+        <div><span>Pending Balance</span><strong class="<%= signedClass(register.balanceSummary.pendingBalance) %>"><%= accountingMoney(register.balanceSummary.pendingBalance) %></strong></div>
+        <div><span>Final Balance</span><strong class="<%= signedClass(register.balanceSummary.finalBalance) %>"><%= accountingMoney(register.balanceSummary.finalBalance) %></strong></div>
+      </div>
+    </form>
+
+    <form id="register-status-form" class="register-bulk-actions" method="post" action="/accounts/<%= register.account.id %>/register/status">
+      <span class="hint">Select rows, then update status.</span>
+      <button type="submit" name="status" value="cleared">Mark Selected Cleared</button>
+      <button class="secondary-button" type="submit" name="status" value="pending">Mark Selected Pending</button>
+      <button class="secondary-button" type="submit" name="status" value="entered">Mark Selected Entered</button>
+    </form>
+  </div>
+
   <table>
   <thead>
     <tr>
+      <th class="select-column"><span class="visually-hidden">Select</span></th>
       <th>Date</th>
       <th>Payee</th>
       <th>Description</th>
       <th>Category</th>
       <th>Amount</th>
       <th>Status</th>
-      <th>Balance After</th>
-      <th>Edit</th>
+      <th>Balance</th>
+      <th></th>
     </tr>
   </thead>
   <tbody>
     <% if (!register.rows.length) { %>
-      <tr><td class="empty-state" colspan="8">No transactions in this view.</td></tr>
+      <tr><td class="empty-state" colspan="9">No transactions in this view.</td></tr>
     <% } %>
     <% register.rows.forEach((item) => { %>
       <tr class="<%= item.status === "void" ? "void-row" : "" %>">
+        <td class="select-column">
+          <% if (item.canEdit) { %>
+            <input form="register-status-form" type="checkbox" name="selectedTransactionIds" value="<%= item.id %>" data-register-transaction>
+          <% } %>
+        </td>
         <td><%= item.date %></td>
         <td><%= item.payeeName || "" %></td>
         <td><%= item.description || "" %></td>
@@ -65,12 +86,18 @@
             </span>
           <% } %>
         </td>
-        <td class="<%= signedClass(item.balanceAfter) %>"><%= accountingMoney(item.balanceAfter) %></td>
+        <td>
+          <% if (item.status === "cleared") { %>
+            <span class="<%= signedClass(item.balance) %>"><%= accountingMoney(item.balance) %></span>
+          <% } else { %>
+            <span class="muted">&mdash;</span>
+          <% } %>
+        </td>
         <td class="actions">
           <% if (item.canEdit && item.transferId) { %>
-            <a href="/accounts/<%= register.account.id %>/register/transfers/<%= item.transferId %>/edit">Edit Transfer</a>
+            <a class="small-button" href="/accounts/<%= register.account.id %>/register/transfers/<%= item.transferId %>/edit">Edit Transfer</a>
           <% } else if (item.canEdit) { %>
-            <a href="/accounts/<%= register.account.id %>/register/<%= item.id %>/edit">Edit</a>
+            <a class="small-button" href="/accounts/<%= register.account.id %>/register/<%= item.id %>/edit">Edit</a>
           <% } else { %>
             <span class="muted">Locked</span>
           <% } %>

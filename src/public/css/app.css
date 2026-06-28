@@ -152,6 +152,16 @@ th {
   padding: 8px;
 }
 
+.section-heading {
+  border-bottom: 1px solid var(--line);
+  padding: 14px 16px;
+}
+
+.section-heading h2 {
+  font-size: 18px;
+  margin: 0;
+}
+
 .empty-state {
   color: var(--muted);
   font-style: italic;
@@ -338,6 +348,12 @@ tr:last-child td {
   margin: 0;
 }
 
+.account-type-row th {
+  background: #dce7ea;
+  color: var(--text);
+  font-size: 13px;
+}
+
 .small-button {
   background: #ffffff;
   border: 1px solid var(--line);
@@ -479,6 +495,47 @@ button:disabled {
 
 .planning-form-actions .danger {
   margin-top: 0;
+}
+
+.register-entry-form {
+  grid-template-columns: repeat(3, minmax(180px, 1fr));
+}
+
+.register-entry-kind {
+  grid-column: 1 / 2;
+  grid-row: 1;
+}
+
+.register-field-date,
+.register-field-payee,
+.register-field-status {
+  grid-row: 2;
+}
+
+.register-field-from,
+.register-field-amount,
+.register-field-to {
+  grid-row: 3;
+}
+
+.register-field-category {
+  grid-column: 1;
+  grid-row: 4;
+}
+
+.register-field-date,
+.register-field-from {
+  grid-column: 1;
+}
+
+.register-field-payee,
+.register-field-amount {
+  grid-column: 2;
+}
+
+.register-field-status,
+.register-field-to {
+  grid-column: 3;
 }
 
 label {
@@ -777,6 +834,83 @@ summary {
   border-radius: 0;
 }
 
+.register-panel {
+  overflow: visible;
+}
+
+.register-panel table {
+  overflow: visible;
+}
+
+.register-panel thead th {
+  position: sticky;
+  top: 178px;
+  z-index: 4;
+}
+
+.register-sticky {
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+  box-shadow: 0 8px 12px -12px rgba(23, 32, 38, 0.5);
+  position: sticky;
+  top: 0;
+  z-index: 6;
+}
+
+.register-filter {
+  align-items: center;
+  justify-content: space-between;
+}
+
+.balance-summary {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(4, minmax(120px, 1fr));
+  margin-left: auto;
+}
+
+.balance-summary div {
+  display: grid;
+  gap: 2px;
+}
+
+.balance-summary span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.balance-summary strong {
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.register-bulk-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px 14px;
+}
+
+.register-bulk-actions .hint {
+  margin-right: auto;
+}
+
+.select-column {
+  text-align: center;
+  width: 44px;
+}
+
+.register-status-filter {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  min-width: 0;
+}
+
 .embedded-filter {
   border: 0;
   border-bottom: 1px solid var(--line);
@@ -964,6 +1098,18 @@ summary {
     position: static;
   }
 
+  .register-sticky,
+  .register-panel thead th {
+    box-shadow: none;
+    position: static;
+  }
+
+  .balance-summary {
+    grid-template-columns: repeat(2, minmax(120px, 1fr));
+    margin-left: 0;
+    width: 100%;
+  }
+
   .reconciliation-summary {
     grid-template-columns: 1fr;
   }
@@ -976,7 +1122,12 @@ summary {
     grid-template-columns: 1fr;
   }
 
+  .register-entry-form {
+    grid-template-columns: 1fr;
+  }
+
   .planning-form-kind,
+  .register-entry-kind,
   .planning-field-name,
   .planning-field-payee,
   .planning-field-frequency,
@@ -986,7 +1137,14 @@ summary {
   .planning-field-start,
   .planning-field-next,
   .planning-field-end,
-  .planning-field-active {
+  .planning-field-active,
+  .register-field-date,
+  .register-field-payee,
+  .register-field-status,
+  .register-field-from,
+  .register-field-amount,
+  .register-field-to,
+  .register-field-category {
     grid-column: 1 / -1;
     grid-row: auto;
   }

@@ -1,59 +1,57 @@
 <section class="page-header row">
   <div>
     <h1>Dashboard</h1>
-    <p><%= showArchived ? "Showing active and archived accounts." : "Showing active accounts." %></p>
+    <p>Upcoming operational items for the next 14 days.</p>
   </div>
   <div class="form-actions">
-    <a class="button secondary-button" href="<%= archiveToggleHref %>"><%= showArchived ? "Hide Archived" : "Show Archived" %></a>
-    <a class="button" href="/accounts/new">New Account</a>
+    <a class="button" href="/commitments/new">New Commitment</a>
+    <a class="button secondary-button" href="/commitments">Future Commitments</a>
   </div>
 </section>
 
-<table>
-  <thead>
-    <tr>
-      <th>Account</th>
-      <th>Type</th>
-      <th>Current Balance</th>
-      <th>30-Day Projected Low</th>
-      <th>Reconciliation</th>
-      <th>Actions</th>
-    </tr>
-  </thead>
-  <tbody>
-    <% if (!accounts.length) { %>
-      <tr><td class="empty-state" colspan="6">No accounts yet.</td></tr>
-    <% } %>
-    <% accounts.forEach((account) => { %>
-      <% const liabilityAccount = ["credit_card", "loan"].includes(account.type); %>
-      <% const projectedLow = account.projection ? account.projection.projectedLowBalance : null; %>
-      <tr class="<%= account.active ? "" : "muted" %>">
-        <td>
-          <%= account.name %>
-          <% if (!account.active) { %>
-            <span class="status">Archived</span>
-          <% } %>
-        </td>
-        <td><%= label(account.type) %></td>
-        <td class="<%= signedClass(account.currentBalance) %>"><%= money(account.currentBalance) %></td>
-        <td>
-          <% if (account.projection) { %>
-            <span class="<%= liabilityAccount ? "amount" : signedClass(projectedLow) %>">
-              <%= liabilityAccount ? money(Math.abs(Number(projectedLow || 0))) : accountingMoney(projectedLow) %>
-            </span>
-            <% if (account.projection.warningDates.length) { %>
-              <a class="forecast-warning-link" href="/accounts/<%= account.id %>/forecast">Projected below zero</a>
-            <% } %>
-          <% } else { %>
-            <span class="muted">Unavailable</span>
-          <% } %>
-        </td>
-        <td><%= account.lastReconciledDate || "Not reconciled yet" %></td>
-        <td class="actions account-actions">
-          <a class="small-button" href="/accounts/<%= account.id %>/register">Register</a>
-          <a class="small-button" href="/accounts/<%= account.id %>/forecast">Forecast</a>
-        </td>
+<section class="table-panel">
+  <div class="section-heading">
+    <h2>Upcoming Future Commitments</h2>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>Due</th>
+        <th>Commitment</th>
+        <th>Account</th>
+        <th>Amount</th>
+        <th>Status</th>
+        <th>Actions</th>
       </tr>
-    <% }) %>
-  </tbody>
-</table>
+    </thead>
+    <tbody>
+      <% if (!upcomingCommitments.length) { %>
+        <tr><td class="empty-state" colspan="6">No future commitments due in the next 14 days.</td></tr>
+      <% } %>
+      <% upcomingCommitments.forEach((item) => { %>
+        <% const overdue = item.nextDueDate < today; %>
+        <tr class="<%= overdue ? "overdue-row" : "" %>">
+          <td><%= item.nextDueDate %></td>
+          <td>
+            <%= item.name %>
+            <% if (item.payeeName) { %>
+              <div class="hint"><%= item.payeeName %></div>
+            <% } %>
+          </td>
+          <td>
+            <% if (item.kind === "transfer") { %>
+              <%= item.transferFromAccountName || "From account" %> &rarr; <%= item.transferToAccountName || "To account" %>
+            <% } else { %>
+              <%= item.accountName || "Unassigned" %>
+            <% } %>
+          </td>
+          <td class="<%= signedClass(item.amount) %>"><%= accountingMoney(item.amount) %></td>
+          <td><span class="status"><%= overdue ? "Overdue" : "Upcoming" %></span></td>
+          <td class="actions">
+            <a class="small-button" href="/commitments/<%= item.id %>/enter"><%= overdue ? "Enter" : "Enter Early" %></a>
+          </td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+</section>

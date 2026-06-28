@@ -28,6 +28,6 @@
     </div>
   <% } %>
   <label class="full">Notes<textarea name="notes"><%= account.notes || "" %></textarea></label>
-  <div class="form-actions full"><button type="submit">Save</button><a href="/accounts">Cancel</a></div>
+  <div class="form-actions full"><button type="submit">Save</button><a class="button secondary-button" href="/accounts">Cancel</a></div>
 </form>
 <% if (account.id && account.active) { %><form method="post" action="/accounts/<%= account.id %>/archive"><button class="danger" type="submit">Archive Account</button></form><% } %>

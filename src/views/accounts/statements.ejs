@@ -29,7 +29,7 @@
         <td class="<%= signedClass(statement.startingBalance) %>"><%= accountingMoney(statement.startingBalance) %></td>
         <td class="<%= signedClass(statement.endingBalance) %>"><%= accountingMoney(statement.endingBalance) %></td>
         <td><%= statement.transactionCount %></td>
-        <td class="actions"><a href="/accounts/<%= account.id %>/statements/<%= statement.id %>">View</a></td>
+        <td class="actions"><a class="small-button" href="/accounts/<%= account.id %>/statements/<%= statement.id %>">View</a></td>
       </tr>
     <% }) %>
   </tbody>

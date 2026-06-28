@@ -11,6 +11,6 @@
       <% } %>
     </div>
   <% } %>
-  <div class="form-actions full"><button type="submit">Save</button><a href="/categories">Cancel</a></div>
+  <div class="form-actions full"><button type="submit">Save</button><a class="button secondary-button" href="/categories">Cancel</a></div>
 </form>
 <% if (category.id && category.active) { %><form method="post" action="/categories/<%= category.id %>/archive"><button class="danger" type="submit">Archive Category</button></form><% } %>

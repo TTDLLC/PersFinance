@@ -360,8 +360,10 @@ const main = async () => {
       const dashboardResponse = await fetch(`${server.baseUrl}/dashboard?asOfDate=2026-06-15`, { headers: { cookie } });
       const dashboardHtml = await dashboardResponse.text();
       assert(dashboardResponse.status === 200, "Dashboard route should load.");
-      assert(dashboardHtml.includes("30-Day Projected Low"), "Dashboard should include the lightweight projection summary.");
-      assert(dashboardHtml.includes("Projected below zero"), "Dashboard should link warnings for asset accounts projected below zero.");
+      assert(dashboardHtml.includes("Upcoming Future Commitments"), "Dashboard should show upcoming future commitments.");
+      assert(dashboardHtml.includes("Forecast Smoke Rent"), "Dashboard should include commitments due soon.");
+      assert(dashboardHtml.includes("Forecast Smoke Card Payment"), "Dashboard should include transfer commitments due soon.");
+      assert(!dashboardHtml.includes("30-Day Projected Low"), "Dashboard should not show the old account projection table.");
     } finally {
       await server.close();
     }

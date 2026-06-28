@@ -18,7 +18,7 @@
         <td><%= payee.name %></td>
         <td><%= payee.notes || "" %></td>
         <td><span class="status"><%= payee.active ? "Active" : "Archived" %></span></td>
-        <td class="actions"><a href="/payees/<%= payee.id %>/edit">Edit</a></td>
+        <td class="actions"><a class="small-button" href="/payees/<%= payee.id %>/edit">Edit</a></td>
       </tr>
     <% }) %>
   </tbody>

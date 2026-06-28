@@ -17,7 +17,7 @@
       <% if (typeof overdueCommitmentCount !== "undefined" && overdueCommitmentCount > 0) { %>
         <div class="commitment-alert" role="status">
           You have <strong><%= overdueCommitmentCount %></strong> overdue commitment<%= overdueCommitmentCount === 1 ? "" : "s" %> requiring review.
-          <a href="/commitments">Review commitments</a>
+          <a class="small-button" href="/commitments">Review commitments</a>
         </div>
       <% } %>
       <%- include(view, { money, accountingMoney, signedClass, label }) %>
